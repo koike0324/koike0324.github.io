@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ultimate Mobile FPS Arena</title>
+    <style>
+        body { margin: 0; overflow: hidden; touch-action: none; background: #aaddff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        /* 照準 */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
+            border: 2px solid #fff; border-radius: 50%;
+            transform: translate(-50%, -50%); mix-blend-mode: difference;
+        }
+
+        /* 共通ボタン設定 */
+        .btn { 
+            position: absolute; pointer-events: auto; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            color: white; font-weight: bold; user-select: none; 
+            border: 2px solid rgba(255,255,255,0.4); 
+            background: rgba(0,0,0,0.3); transition: transform 0.05s;
+        }
+        .btn:active { transform: scale(0.9); background: rgba(0,0,0,0.5); }
+
+        /* 左手：ジョイスティック */
+        #joystick-container { 
+            bottom: 40px; left: 40px; width: 130px; height: 130px; 
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); 
+            position: absolute; pointer-events: auto; background: rgba(255,255,255,0.1); 
+        }
+        #joystick-knob { 
+            position: absolute; top: 40px; left: 40px; width: 50px; height: 50px; 
+            background: rgba(255,255,255,0.4); border-radius: 50%; 
+        }
+
+        /* 右手：操作系 */
+        #fire-button { bottom: 140px; right: 40px; width: 100px; height: 100px; background: rgba(255, 50, 50, 0.6); font-size: 20px; }
+        #jump-button { bottom: 40px; right: 160px; width: 80px; height: 80px; background: rgba(50, 150, 255, 0.6); }
+        #reload-button { bottom: 40px; right: 40px; width: 80px; height: 80px; background: rgba(80, 80, 80, 0.8); font-size: 13px; }
+
+        /* リロードUI */
+        #reload-container {
+            position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%);
+            width: 140px; text-align: center; display: none;
+        }
+        #reload-text { color: #ff3300; font-weight: bold; font-size: 14px; margin-bottom: 5px; text-shadow: 1px 1px 2px black; }
+        #reload-bar-bg { width: 100%; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; }
+        #reload-bar-fill { width: 0%; height: 100%; background: #00ffcc; }
+
+        /* 情報表示 */
+        #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #222; text-shadow: 1px 1px 0 rgba(255,255,255,0.8); }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="ammo-display">15 / 15</div>
+        
+        <div id="reload-container">
+            <div id="reload-text">RELOADING</div>
+            <div id="reload-bar-bg"><div id="reload-bar-fill"></div></div>
+        </div>
+
+        <div id="joystick-container"><div id="joystick-knob"></div></div>
+        <div id="fire-button" class="btn">FIRE</div>
+        <div id="jump-button" class="btn">JUMP</div>
+        <div id="reload-button" class="btn">RELOAD</div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- シーン構築 ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xaaddff);
+        scene.fog = new THREE.Fog(0xaaddff, 20, 100);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        const light = new THREE.HemisphereLight(0xffffff, 0x888888, 2.0);
+        scene.add(light);
+
+        // 床
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({color: 0x999999}));
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        scene.add(new THREE.GridHelper(500, 100, 0x888888, 0xaaaaaa));
+
+        // --- 建物 & 障害物 ---
+        const colliders = [];
+        const wallMat = new THREE.MeshStandardMaterial({color: 0x556677});
+        const containerMat = new THREE.MeshStandardMaterial({color: 0xaa4444});
+
+        function addBox(x, z, w, h, d, mat) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, h/2, z);
+            scene.add(m);
+            colliders.push({ 
+                minX: x-w/2, maxX: x+w/2, 
+                minZ: z-d/2, maxZ: z+d/2,
+                width: w, depth: d
+            });
+        }
+
+        // 配置
+        addBox(0, -15, 10, 3, 2, wallMat);      // 中央カバー
+        addBox(-15, -20, 8, 20, 8, wallMat);    // 左ビル
+        addBox(15, -20, 8, 20, 8, wallMat);     // 右ビル
+        addBox(0, -45, 30, 25, 10, wallMat);    // 奥のビル
+        addBox(-6, -30, 3, 3, 6, containerMat); // 赤コンテナ
+
+        // --- ターゲット ---
+        const targets = [];
+        const tGeo = new THREE.IcosahedronGeometry(0.8, 0);
+        const tMat = new THREE.MeshStandardMaterial({color: 0xff3300, emissive: 0xff0000, emissiveIntensity: 0.6});
+        for(let i=0; i<12; i++) {
+            const t = new THREE.Mesh(tGeo, tMat);
+            t.position.set(Math.random()*60-30, 2 + Math.random()*6, -10 - Math.random()*50);
+            scene.add(t);
+            targets.push(t);
+        }
+
+        // --- プレイヤー & 銃 ---
+        const gunGroup = new THREE.Group();
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.6), new THREE.MeshStandardMaterial({color: 0x222222}));
+        gun.position.set(0.3, -0.3, -0.5);
+        gunGroup.add(gun);
+        camera.add(gunGroup);
+        scene.add(camera);
+
+        let ammo = 15, isReloading = false, reloadTimer = 0;
+        const RELOAD_TIME = 0.85;
+        let yaw = 0, pitch = 0, velocityY = 0, isGrounded = true;
+        let moveF = 0, moveR = 0;
+        const playerPos = new THREE.Vector3(0, 1.6, 10);
+        const MOVE_SPEED = 0.38;
+        const PLAYER_RADIUS = 0.5;
+
+        // UI取得
+        const reloadUI = document.getElementById('reload-container');
+        const reloadBar = document.getElementById('reload-bar-fill');
+
+        // タッチ状態管理
+        const touchState = {
+            lookTouchId: null,
+            lookStartX: null,
+            lookStartY: null
+        };
+
+        // --- 視点操作 (改善版) ---
+        window.addEventListener('touchstart', e => {
+            for(const touch of e.touches) {
+                if(touch.clientX > window.innerWidth/2 && touchState.lookTouchId === null) {
+                    touchState.lookTouchId = touch.identifier;
+                    touchState.lookStartX = touch.clientX;
+                    touchState.lookStartY = touch.clientY;
+                    break;
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', e => {
+            for(const touch of e.touches) {
+                if(touch.identifier === touchState.lookTouchId) {
+                    yaw -= (touch.clientX - touchState.lookStartX) * 0.0055;
+                    pitch -= (touch.clientY - touchState.lookStartY) * 0.0055;
+                    pitch = Math.max(-1.45, Math.min(1.45, pitch));
+                    touchState.lookStartX = touch.clientX;
+                    touchState.lookStartY = touch.clientY;
+                    break;
+                }
+            }
+        });
+
+        window.addEventListener('touchend', e => {
+            for(const touch of e.changedTouches) {
+                if(touch.identifier === touchState.lookTouchId) {
+                    touchState.lookTouchId = null;
+                    break;
+                }
+            }
+        });
+
+        // --- 移動ジョイスティック (改善版) ---
+        const joy = document.getElementById('joystick-container');
+        const knob = document.getElementById('joystick-knob');
+        let joyTouchId = null;
+
+        joy.addEventListener('touchstart', e => {
+            if(joyTouchId === null && e.touches.length > 0) {
+                joyTouchId = e.touches[0].identifier;
+            }
+        });
+
+        joy.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for(const touch of e.touches) {
+                if(touch.identifier === joyTouchId) {
+                    const r = joy.getBoundingClientRect();
+                    const dx = touch.clientX - (r.left + r.width/2);
+                    const dy = touch.clientY - (r.top + r.height/2);
+                    const dist = Math.sqrt(dx*dx+dy*dy);
+                    const d = Math.min(dist, 50);
+                    const a = dist > 0 ? Math.atan2(dy, dx) : 0;
+                    knob.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
+                    moveR = (d/50) * Math.cos(a);
+                    moveF = -(d/50) * Math.sin(a);
+                    break;
+                }
+            }
+        });
+
+        joy.addEventListener('touchend', e => {
+            for(const touch of e.changedTouches) {
+                if(touch.identifier === joyTouchId) {
+                    moveF = 0;
+                    moveR = 0;
+                    knob.style.transform = 'translate(0,0)';
+                    joyTouchId = null;
+                    break;
+                }
+            }
+        });
+
+        // --- 射撃 & リロード判定 (改善版) ---
+        const ray = new THREE.Raycaster();
+        let lastShotTime = 0;
+        const SHOT_COOLDOWN = 0.1; // 連射制限
+
+        function shoot() {
+            if(ammo <= 0 || isReloading) return;
+            const now = Date.now() / 1000;
+            if(now - lastShotTime < SHOT_COOLDOWN) return; // 連射制限
+
+            lastShotTime = now;
+            ammo--;
+            document.getElementById('ammo-display').innerText = `${ammo} / 15`;
+            gunGroup.position.z += 0.22; // 反動
+
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const hits = ray.intersectObjects(targets);
+            if(hits.length > 0) {
+                const o = hits[0].object;
+                o.scale.set(0,0,0);
+                setTimeout(() => { 
+                    o.scale.set(1,1,1); 
+                    o.position.set(Math.random()*60-30, 2+Math.random()*6, -10-Math.random()*50);
+                }, 2000);
+            }
+        }
+
+        function startReload() {
+            if(!isReloading && ammo < 15) {
+                isReloading = true;
+                reloadTimer = 0;
+                reloadUI.style.display = 'block';
+            }
+        }
+
+        document.getElementById('fire-button').addEventListener('touchstart', e => { 
+            e.preventDefault(); 
+            shoot(); 
+        });
+        document.getElementById('jump-button').addEventListener('touchstart', e => { 
+            e.preventDefault();
+            if(isGrounded) {
+                velocityY = 0.36;
+                isGrounded = false;
+            }
+        });
+        document.getElementById('reload-button').addEventListener('touchstart', e => { 
+            e.preventDefault(); 
+            startReload(); 
+        });
+
+        // --- 衝突判定 (改善版) ---
+        function checkCollision(x, z, radius) {
+            for(const c of colliders) {
+                // 矩形との距離を計算
+                const closestX = Math.max(c.minX, Math.min(x, c.maxX));
+                const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
+                const distX = x - closestX;
+                const distZ = z - closestZ;
+                const distSq = distX*distX + distZ*distZ;
+                
+                if(distSq < radius*radius) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // --- メインループ ---
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+
+            const fw = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion); 
+            fw.y = 0; 
+            fw.normalize();
+            const rt = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), fw).negate();
+            
+            const moveVec = new THREE.Vector3(
+                fw.x * moveF + rt.x * moveR,
+                0,
+                fw.z * moveF + rt.z * moveR
+            ).multiplyScalar(MOVE_SPEED);
+
+            const nX = playerPos.x + moveVec.x;
+            const nZ = playerPos.z + moveVec.z;
+
+            // 軸分離衝突判定
+            if(!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
+                playerPos.x = nX;
+            }
+            if(!checkCollision(playerPos.x, nZ, PLAYER_RADIUS)) {
+                playerPos.z = nZ;
+            }
+
+            // 重力 & ジャンプ
+            velocityY -= 0.019;
+            playerPos.y += velocityY;
+            if(playerPos.y <= 1.6) {
+                playerPos.y = 1.6;
+                velocityY = 0;
+                isGrounded = true;
+            }
+            
+            // リロード & 銃アニメーション
+            if(isReloading) {
+                reloadTimer += delta;
+                const p = Math.min(reloadTimer / RELOAD_TIME, 1);
+                reloadBar.style.width = (p * 100) + '%';
+                gunGroup.position.y = Math.sin(p * Math.PI) * -0.65;
+                if(reloadTimer >= RELOAD_TIME) {
+                    isReloading = false;
+                    ammo = 15;
+                    document.getElementById('ammo-display').innerText = "15 / 15";
+                    reloadUI.style.display = 'none';
+                    gunGroup.position.y = 0;
+                }
+            } else {
+                // 呼吸/反動復帰
+                gunGroup.position.y = Math.sin(Date.now()*0.0025)*0.015;
+                gunGroup.position.z += (0 - gunGroup.position.z) * 0.18;
+            }
+
+            camera.position.copy(playerPos);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // ウィンドウリサイズ対応
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
