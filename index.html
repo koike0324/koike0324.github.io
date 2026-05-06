@@ -30,16 +30,21 @@
             bottom: 40px; left: 40px; width: 130px; height: 130px; 
             border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); 
             position: absolute; pointer-events: auto; background: rgba(255,255,255,0.1); 
+            display: none;
         }
+        #joystick-container.mobile-visible { display: block; }
         #joystick-knob { 
             position: absolute; top: 40px; left: 40px; width: 50px; height: 50px; 
             background: rgba(255,255,255,0.4); border-radius: 50%; 
         }
 
         /* 右手：操作系 */
-        #fire-button { bottom: 140px; right: 40px; width: 100px; height: 100px; background: rgba(255, 50, 50, 0.6); font-size: 20px; }
-        #jump-button { bottom: 40px; right: 160px; width: 80px; height: 80px; background: rgba(50, 150, 255, 0.6); }
-        #reload-button { bottom: 40px; right: 40px; width: 80px; height: 80px; background: rgba(80, 80, 80, 0.8); font-size: 13px; }
+        #fire-button { bottom: 140px; right: 40px; width: 100px; height: 100px; background: rgba(255, 50, 50, 0.6); font-size: 20px; display: none; }
+        #fire-button.mobile-visible { display: flex; }
+        #jump-button { bottom: 40px; right: 160px; width: 80px; height: 80px; background: rgba(50, 150, 255, 0.6); display: none; }
+        #jump-button.mobile-visible { display: flex; }
+        #reload-button { bottom: 40px; right: 40px; width: 80px; height: 80px; background: rgba(80, 80, 80, 0.8); font-size: 13px; display: none; }
+        #reload-button.mobile-visible { display: flex; }
 
         /* リロードUI */
         #reload-container {
@@ -52,6 +57,14 @@
 
         /* 情報表示 */
         #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #222; text-shadow: 1px 1px 0 rgba(255,255,255,0.8); }
+        
+        /* PC操作ガイド */
+        #controls-guide {
+            position: absolute; bottom: 20px; right: 20px; color: #222; font-size: 12px;
+            background: rgba(255,255,255,0.7); padding: 10px 15px; border-radius: 8px;
+            text-align: right; line-height: 1.6;
+        }
+        #controls-guide.hidden { display: none; }
     </style>
 </head>
 <body>
@@ -69,6 +82,14 @@
         <div id="fire-button" class="btn">FIRE</div>
         <div id="jump-button" class="btn">JUMP</div>
         <div id="reload-button" class="btn">RELOAD</div>
+        
+        <div id="controls-guide">
+            <div>WASD: 移動</div>
+            <div>Mouse: 視点</div>
+            <div>Click: 射撃</div>
+            <div>Space: ジャンプ</div>
+            <div>R: リロード</div>
+        </div>
     </div>
 
     <script type="importmap">
@@ -77,6 +98,20 @@
 
     <script type="module">
         import * as THREE from 'three';
+
+        // --- デバイス判定 ---
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // モバイルUIの表示制御
+        if(isMobile) {
+            document.getElementById('joystick-container').classList.add('mobile-visible');
+            document.getElementById('fire-button').classList.add('mobile-visible');
+            document.getElementById('jump-button').classList.add('mobile-visible');
+            document.getElementById('reload-button').classList.add('mobile-visible');
+            document.getElementById('controls-guide').classList.add('hidden');
+        } else {
+            document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+        }
 
         // --- シーン構築 ---
         const scene = new THREE.Scene();
@@ -152,6 +187,52 @@
         const reloadUI = document.getElementById('reload-container');
         const reloadBar = document.getElementById('reload-bar-fill');
 
+        // --- キーボード入力 (PC) ---
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if(e.key === ' ') {
+                e.preventDefault();
+                if(isGrounded) {
+                    velocityY = 0.36;
+                    isGrounded = false;
+                }
+            }
+            if(e.key.toLowerCase() === 'r') {
+                e.preventDefault();
+                startReload();
+            }
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // --- マウス操作 (PC) ---
+        let mouseDown = false;
+        renderer.domElement.addEventListener('click', () => {
+            if(!isMobile) renderer.domElement.requestPointerLock();
+        });
+        
+        document.addEventListener('pointerlockchange', () => {
+            if(document.pointerLockElement === renderer.domElement) {
+                mouseDown = true;
+            } else {
+                mouseDown = false;
+            }
+        });
+
+        renderer.domElement.addEventListener('mousemove', e => {
+            if(document.pointerLockElement === renderer.domElement) {
+                yaw -= e.movementX * 0.005;
+                pitch -= e.movementY * 0.005;
+                pitch = Math.max(-1.45, Math.min(1.45, pitch));
+            }
+        });
+
+        renderer.domElement.addEventListener('click', () => {
+            if(!isMobile) shoot();
+        });
+
         // タッチ状態管理
         const touchState = {
             lookTouchId: null,
@@ -159,7 +240,7 @@
             lookStartY: null
         };
 
-        // --- 視点操作 (改善版) ---
+        // --- 視点操作 (モバイル) ---
         window.addEventListener('touchstart', e => {
             for(const touch of e.touches) {
                 if(touch.clientX > window.innerWidth/2 && touchState.lookTouchId === null) {
@@ -193,7 +274,7 @@
             }
         });
 
-        // --- 移動ジョイスティック (改善版) ---
+        // --- 移動ジョイスティック (モバイル) ---
         const joy = document.getElementById('joystick-container');
         const knob = document.getElementById('joystick-knob');
         let joyTouchId = null;
@@ -234,7 +315,7 @@
             }
         });
 
-        // --- 射撃 & リロード判定 (改善版) ---
+        // --- 射撃 & リロード判定 ---
         const ray = new THREE.Raycaster();
         let lastShotTime = 0;
         const SHOT_COOLDOWN = 0.1; // 連射制限
@@ -285,7 +366,7 @@
             startReload(); 
         });
 
-        // --- 衝突判定 (改善版) ---
+        // --- 衝突判定 ---
         function checkCollision(x, z, radius) {
             for(const c of colliders) {
                 // 矩形との距離を計算
@@ -308,6 +389,16 @@
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+
+            // PC キーボード操作
+            if(!isMobile) {
+                moveF = 0;
+                moveR = 0;
+                if(keys['w']) moveF += 1;
+                if(keys['s']) moveF -= 1;
+                if(keys['a']) moveR -= 1;
+                if(keys['d']) moveR += 1;
+            }
 
             const fw = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion); 
             fw.y = 0; 
