@@ -5,9 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ultimate Mobile FPS Arena</title>
     <style>
-        body { margin: 0; overflow: hidden; touch-action: none; background: #aaddff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; overflow: hidden; touch-action: none; background: #4a4a4a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
+        /* ミニマップ */
+        #minimap-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        #minimap {
+            width: 100%;
+            height: 100%;
+        }
+
         /* 照準 */
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
@@ -56,12 +73,12 @@
         #reload-bar-fill { width: 0%; height: 100%; background: #00ffcc; }
 
         /* 情報表示 */
-        #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #222; text-shadow: 1px 1px 0 rgba(255,255,255,0.8); }
+        #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #fff; text-shadow: 1px 1px 0 rgba(0,0,0,0.8); }
         
         /* PC操作ガイド */
         #controls-guide {
-            position: absolute; bottom: 20px; right: 20px; color: #222; font-size: 12px;
-            background: rgba(255,255,255,0.7); padding: 10px 15px; border-radius: 8px;
+            position: absolute; bottom: 20px; right: 20px; color: #fff; font-size: 12px;
+            background: rgba(0,0,0,0.7); padding: 10px 15px; border-radius: 8px;
             text-align: right; line-height: 1.6;
         }
         #controls-guide.hidden { display: none; }
@@ -92,6 +109,10 @@
                 top: max(20px, env(safe-area-inset-top));
                 left: max(20px, env(safe-area-inset-left));
             }
+            #minimap-container {
+                top: max(20px, env(safe-area-inset-top));
+                right: max(20px, env(safe-area-inset-right));
+            }
         }
     </style>
 </head>
@@ -104,6 +125,10 @@
         <div id="reload-container">
             <div id="reload-text">RELOADING</div>
             <div id="reload-bar-bg"><div id="reload-bar-fill"></div></div>
+        </div>
+
+        <div id="minimap-container">
+            <canvas id="minimap"></canvas>
         </div>
 
         <div id="joystick-container"><div id="joystick-knob"></div></div>
@@ -145,8 +170,8 @@
 
         // --- シーン構築 ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xaaddff);
-        scene.fog = new THREE.Fog(0xaaddff, 15, 60);
+        scene.background = new THREE.Color(0x4a4a4a);
+        scene.fog = new THREE.Fog(0x4a4a4a, 15, 80);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -154,33 +179,36 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.HemisphereLight(0xffffff, 0x888888, 2.0);
+        const light = new THREE.HemisphereLight(0x8899aa, 0x444444, 1.5);
         scene.add(light);
 
-        // 床
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x999999}));
+        // 床（コンクリート）
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({color: 0x555555, roughness: 0.8}));
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
-        scene.add(new THREE.GridHelper(100, 50, 0x888888, 0xaaaaaa));
+        scene.add(new THREE.GridHelper(150, 75, 0x666666, 0x555555));
 
         // --- 建物 & 障害物 ---
         const colliders = [];
-        const wallMat = new THREE.MeshStandardMaterial({color: 0x556677});
-        const containerMat = new THREE.MeshStandardMaterial({color: 0xaa4444});
-        const windowMat = new THREE.MeshStandardMaterial({color: 0x4499ff});
+        const wallMat = new THREE.MeshStandardMaterial({color: 0x6b5d52, roughness: 0.9});
+        const damagedWallMat = new THREE.MeshStandardMaterial({color: 0x5a4d45, roughness: 0.95});
+        const metalMat = new THREE.MeshStandardMaterial({color: 0x4a4a4a, metalness: 0.8, roughness: 0.2});
 
-        function addBox(x, z, w, h, d, mat) {
+        function addBox(x, z, w, h, d, mat, isInterior = false) {
             const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             m.position.set(x, h/2, z);
             scene.add(m);
-            colliders.push({ 
-                minX: x-w/2, maxX: x+w/2, 
-                minZ: z-d/2, maxZ: z+d/2,
-                width: w, depth: d, height: h
-            });
+            
+            if(!isInterior) {
+                colliders.push({ 
+                    minX: x-w/2, maxX: x+w/2, 
+                    minZ: z-d/2, maxZ: z+d/2,
+                    width: w, depth: d, height: h
+                });
+            }
         }
 
-        // ビルの構造
+        // ビルの構造（大きさを戻した）
         function createBuilding(x, z, w, d, h, floors) {
             // 外壁
             addBox(x, z, w, h, d, wallMat);
@@ -189,30 +217,36 @@
             const floorHeight = h / floors;
             for(let i = 1; i < floors; i++) {
                 const windowBox = new THREE.Mesh(
-                    new THREE.BoxGeometry(w * 0.9, 0.1, d * 0.9),
-                    windowMat
+                    new THREE.BoxGeometry(w * 0.9, 0.2, d * 0.9),
+                    new THREE.MeshStandardMaterial({color: 0x2a2a2a})
                 );
                 windowBox.position.set(x, floorHeight * i, z);
                 scene.add(windowBox);
             }
 
-            // 内部の床を表現
+            // 内部の床を表現（衝突判定なし）
             for(let i = 0; i <= floors; i++) {
                 const floorBox = new THREE.Mesh(
-                    new THREE.BoxGeometry(w * 0.8, 0.05, d * 0.8),
-                    new THREE.MeshStandardMaterial({color: 0x666666})
+                    new THREE.BoxGeometry(w * 0.8, 0.1, d * 0.8),
+                    new THREE.MeshStandardMaterial({color: 0x555555})
                 );
-                floorBox.position.set(x, floorHeight * i + 0.1, z);
+                floorBox.position.set(x, floorHeight * i + 0.2, z);
                 scene.add(floorBox);
             }
         }
 
-        // マップ配置（小さくしたバージョン）
-        createBuilding(0, -8, 6, 3, 12, 4);       // 中央ビル（高い）
-        addBox(-10, -10, 5, 8, 5, wallMat);       // 左ビル
-        addBox(10, -10, 5, 8, 5, wallMat);        // 右ビル
-        addBox(0, -20, 8, 10, 4, wallMat);        // 奥の���物
-        addBox(-5, -15, 2, 3, 4, containerMat);   // 赤コンテナ
+        // マップ配置（荒廃した都会風、ビル大きさを復元）
+        createBuilding(0, -15, 12, 8, 25, 5);      // 中央ビル（高い）
+        addBox(-20, -25, 10, 15, 8, damagedWallMat);   // 左ビル（傷ついた）
+        addBox(20, -25, 10, 15, 8, wallMat);        // 右ビル
+        addBox(0, -50, 20, 18, 10, wallMat);        // 奥の建物
+        addBox(-15, -35, 6, 8, 8, metalMat);        // 金属コンテナ
+        addBox(15, -35, 6, 8, 8, metalMat);         // 金属コンテナ
+
+        // 廃墟感を出すための小さな障害物
+        addBox(-35, -20, 4, 6, 4, damagedWallMat);
+        addBox(35, -20, 4, 6, 4, damagedWallMat);
+        addBox(-10, -60, 8, 3, 8, metalMat);
 
         // --- 人型ダミー作成関数 ---
         function createDummy(x, z) {
@@ -265,17 +299,18 @@
             };
         }
 
-        // ダミー配列（数を減らした）
+        // ダミー配列（マップ範囲内に限定）
+        const DUMMY_BOUNDS = { minX: -45, maxX: 45, minZ: -55, maxZ: 5 };
         const dummies = [];
         for(let i = 0; i < 3; i++) {
             let x, z, valid;
             do {
                 valid = true;
-                x = Math.random() * 30 - 15;
-                z = -5 - Math.random() * 25;
+                x = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
+                z = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
                 // 衝突判定で有効な位置か確認
                 for(const c of colliders) {
-                    if(x > c.minX - 2 && x < c.maxX + 2 && z > c.minZ - 2 && z < c.maxZ + 2) {
+                    if(x > c.minX - 3 && x < c.maxX + 3 && z > c.minZ - 3 && z < c.maxZ + 3) {
                         valid = false;
                         break;
                     }
@@ -290,7 +325,7 @@
         const tMat = new THREE.MeshStandardMaterial({color: 0xff3300, emissive: 0xff0000, emissiveIntensity: 0.6});
         for(let i=0; i<8; i++) {
             const t = new THREE.Mesh(tGeo, tMat);
-            t.position.set(Math.random()*30-15, 2 + Math.random()*4, -5 - Math.random()*25);
+            t.position.set(DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX), 2 + Math.random() * 4, DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ));
             scene.add(t);
             targets.push(t);
         }
@@ -314,6 +349,67 @@
         // UI取得
         const reloadUI = document.getElementById('reload-container');
         const reloadBar = document.getElementById('reload-bar-fill');
+
+        // --- ミニマップ設定 ---
+        const minimapCanvas = document.getElementById('minimap');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        minimapCanvas.width = 150;
+        minimapCanvas.height = 150;
+        const MINIMAP_SCALE = 1.5 / 150; // マップを150pxに収める
+
+        function updateMinimap() {
+            minimapCtx.fillStyle = '#2a2a2a';
+            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+            // グリッド
+            minimapCtx.strokeStyle = '#444444';
+            minimapCtx.lineWidth = 0.5;
+            for(let i = 0; i <= 10; i++) {
+                minimapCtx.beginPath();
+                minimapCtx.moveTo(i * 15, 0);
+                minimapCtx.lineTo(i * 15, minimapCanvas.height);
+                minimapCtx.stroke();
+            }
+
+            // 衝突物（建物）を描画
+            minimapCtx.fillStyle = '#8b7d72';
+            for(const c of colliders) {
+                const px = (c.minX + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
+                const py = (-c.minZ + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+                const pw = (c.maxX - c.minX) * MINIMAP_SCALE;
+                const ph = (c.maxZ - c.minZ) * MINIMAP_SCALE;
+                minimapCtx.fillRect(px, py, pw, ph);
+            }
+
+            // ダミーを描画
+            minimapCtx.fillStyle = '#ff9999';
+            for(const dummy of dummies) {
+                if(!dummy.isAlive) continue;
+                const px = (dummy.group.position.x + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
+                const py = (-dummy.group.position.z + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+                minimapCtx.beginPath();
+                minimapCtx.arc(px, py, 3, 0, Math.PI * 2);
+                minimapCtx.fill();
+            }
+
+            // プレイヤーを描画
+            minimapCtx.fillStyle = '#00ff00';
+            const playerPx = (playerPos.x + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
+            const playerPy = (-playerPos.z + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+            minimapCtx.beginPath();
+            minimapCtx.arc(playerPx, playerPy, 4, 0, Math.PI * 2);
+            minimapCtx.fill();
+
+            // プレイヤーの視点方向を描画
+            minimapCtx.strokeStyle = '#00ff00';
+            minimapCtx.lineWidth = 2;
+            minimapCtx.beginPath();
+            minimapCtx.moveTo(playerPx, playerPy);
+            const dirX = Math.sin(yaw) * 8;
+            const dirZ = Math.cos(yaw) * 8;
+            minimapCtx.lineTo(playerPx + dirX, playerPy - dirZ);
+            minimapCtx.stroke();
+        }
 
         // --- キーボード入力 (PC) ---
         const keys = {};
@@ -368,7 +464,6 @@
         // --- 視点操作 (モバイル/iPad) ---
         window.addEventListener('touchstart', e => {
             for(const touch of e.touches) {
-                // iPad: 右半分でも視点操作できるように調整
                 const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
                 if(touch.clientX > triggerPoint && touchState.lookTouchId === null) {
                     touchState.lookTouchId = touch.identifier;
@@ -445,32 +540,42 @@
         // --- 射撃 & リロード判定 ---
         const ray = new THREE.Raycaster();
         let lastShotTime = 0;
-        const SHOT_COOLDOWN = 0.1; // 連射制限
+        const SHOT_COOLDOWN = 0.1;
 
         function shoot() {
             if(ammo <= 0 || isReloading) return;
             const now = Date.now() / 1000;
-            if(now - lastShotTime < SHOT_COOLDOWN) return; // 連射制限
+            if(now - lastShotTime < SHOT_COOLDOWN) return;
 
             lastShotTime = now;
             ammo--;
             document.getElementById('ammo-display').innerText = `${ammo} / 15`;
-            gunGroup.position.z += 0.22; // 反動
+            gunGroup.position.z += 0.22;
 
             ray.setFromCamera(new THREE.Vector2(0,0), camera);
             
-            // ターゲット判定
             const hits = ray.intersectObjects(targets);
             if(hits.length > 0) {
                 const o = hits[0].object;
                 o.scale.set(0,0,0);
                 setTimeout(() => { 
-                    o.scale.set(1,1,1); 
-                    o.position.set(Math.random()*30-15, 2+Math.random()*4, -5-Math.random()*25);
+                    o.scale.set(1,1,1);
+                    let newX, newZ, valid;
+                    do {
+                        valid = true;
+                        newX = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
+                        newZ = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
+                        for(const c of colliders) {
+                            if(newX > c.minX - 2 && newX < c.maxX + 2 && newZ > c.minZ - 2 && newZ < c.maxZ + 2) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                    } while(!valid);
+                    o.position.set(newX, 2+Math.random()*4, newZ);
                 }, 2000);
             }
 
-            // ダミー判定
             for(const dummy of dummies) {
                 if(!dummy.isAlive) continue;
                 const allMeshes = [dummy.body, dummy.leftArm, dummy.rightArm, dummy.leftLeg, dummy.rightLeg];
@@ -513,7 +618,6 @@
         // --- 衝突判定 ---
         function checkCollision(x, z, radius) {
             for(const c of colliders) {
-                // 矩形との距離を計算
                 const closestX = Math.max(c.minX, Math.min(x, c.maxX));
                 const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
                 const distX = x - closestX;
@@ -532,7 +636,6 @@
             for(const dummy of dummies) {
                 if(!dummy.isAlive) continue;
 
-                // ランダムに方向変更
                 dummy.wanderTimer += delta;
                 if(dummy.wanderTimer > dummy.wanderInterval) {
                     dummy.moveDir = Math.random() * Math.PI * 2;
@@ -540,23 +643,23 @@
                     dummy.wanderTimer = 0;
                 }
 
-                // 移動（速度を小さくした）
                 const moveSpeed = 0.08;
-                const newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed;
-                const newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed;
+                let newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed;
+                let newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed;
+
+                // マップ範囲内に制限
+                newX = Math.max(DUMMY_BOUNDS.minX, Math.min(newX, DUMMY_BOUNDS.maxX));
+                newZ = Math.max(DUMMY_BOUNDS.minZ, Math.min(newZ, DUMMY_BOUNDS.maxZ));
 
                 // 衝突判定
                 if(!checkCollision(newX, newZ, 0.35)) {
                     dummy.group.position.x = newX;
                     dummy.group.position.z = newZ;
-                    // 体の回転
                     dummy.group.rotation.y = dummy.moveDir;
                 } else {
-                    // 障害物に当たったら方向変更
                     dummy.moveDir = Math.random() * Math.PI * 2;
                 }
 
-                // 歩行アニメーション
                 const walkCycle = (Date.now() * 0.01) % (Math.PI * 2);
                 dummy.leftArm.rotation.z = Math.sin(walkCycle) * 0.3;
                 dummy.rightArm.rotation.z = Math.sin(walkCycle + Math.PI) * 0.3;
@@ -572,7 +675,6 @@
             const delta = clock.getDelta();
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            // PC キーボード操作
             if(!isMobile) {
                 moveF = 0;
                 moveR = 0;
@@ -596,7 +698,6 @@
             const nX = playerPos.x + moveVec.x;
             const nZ = playerPos.z + moveVec.z;
 
-            // 軸分離衝突判定
             if(!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
                 playerPos.x = nX;
             }
@@ -604,7 +705,6 @@
                 playerPos.z = nZ;
             }
 
-            // 重力 & ジャンプ
             velocityY -= 0.019;
             playerPos.y += velocityY;
             if(playerPos.y <= 1.6) {
@@ -613,7 +713,6 @@
                 isGrounded = true;
             }
             
-            // リロード & 銃アニメーション
             if(isReloading) {
                 reloadTimer += delta;
                 const p = Math.min(reloadTimer / RELOAD_TIME, 1);
@@ -627,13 +726,12 @@
                     gunGroup.position.y = 0;
                 }
             } else {
-                // 呼吸/反動復帰
                 gunGroup.position.y = Math.sin(Date.now()*0.0025)*0.015;
                 gunGroup.position.z += (0 - gunGroup.position.z) * 0.18;
             }
 
-            // ダミーの更新
             updateDummies(delta);
+            updateMinimap();
 
             camera.position.copy(playerPos);
             renderer.render(scene, camera);
