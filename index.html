@@ -156,6 +156,76 @@
         addBox(0, -45, 30, 25, 10, wallMat);    // 奥のビル
         addBox(-6, -30, 3, 3, 6, containerMat); // 赤コンテナ
 
+        // --- 人型ダミー作成関数 ---
+        function createDummy(x, z) {
+            const dummyGroup = new THREE.Group();
+            dummyGroup.position.set(x, 0, z);
+
+            // 胴体
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.3), new THREE.MeshStandardMaterial({color: 0x4488ff}));
+            body.position.y = 1;
+            dummyGroup.add(body);
+
+            // 頭
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({color: 0xffcc99}));
+            head.position.y = 2;
+            dummyGroup.add(head);
+
+            // 腕
+            const armMat = new THREE.MeshStandardMaterial({color: 0xffcc99});
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), armMat);
+            leftArm.position.set(-0.4, 1.4, 0);
+            dummyGroup.add(leftArm);
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), armMat);
+            rightArm.position.set(0.4, 1.4, 0);
+            dummyGroup.add(rightArm);
+
+            // 脚
+            const legMat = new THREE.MeshStandardMaterial({color: 0x222222});
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), legMat);
+            leftLeg.position.set(-0.15, 0.45, 0);
+            dummyGroup.add(leftLeg);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), legMat);
+            rightLeg.position.set(0.15, 0.45, 0);
+            dummyGroup.add(rightLeg);
+
+            scene.add(dummyGroup);
+
+            return {
+                group: dummyGroup,
+                body: body,
+                leftArm: leftArm,
+                rightArm: rightArm,
+                leftLeg: leftLeg,
+                rightLeg: rightLeg,
+                moveDir: Math.random() * Math.PI * 2,
+                wanderTimer: 0,
+                wanderInterval: 3 + Math.random() * 3,
+                velocity: new THREE.Vector3(0, 0, 0),
+                health: 3,
+                isAlive: true
+            };
+        }
+
+        // ダミー配列
+        const dummies = [];
+        for(let i = 0; i < 6; i++) {
+            let x, z, valid;
+            do {
+                valid = true;
+                x = Math.random() * 60 - 30;
+                z = -10 - Math.random() * 40;
+                // 衝突判定で有効な位置か確認
+                for(const c of colliders) {
+                    if(x > c.minX - 2 && x < c.maxX + 2 && z > c.minZ - 2 && z < c.maxZ + 2) {
+                        valid = false;
+                        break;
+                    }
+                }
+            } while(!valid);
+            dummies.push(createDummy(x, z));
+        }
+
         // --- ターゲット ---
         const targets = [];
         const tGeo = new THREE.IcosahedronGeometry(0.8, 0);
@@ -328,6 +398,8 @@
             gunGroup.position.z += 0.22; // 反動
 
             ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            
+            // ターゲット判定
             const hits = ray.intersectObjects(targets);
             if(hits.length > 0) {
                 const o = hits[0].object;
@@ -336,6 +408,21 @@
                     o.scale.set(1,1,1); 
                     o.position.set(Math.random()*60-30, 2+Math.random()*6, -10-Math.random()*50);
                 }, 2000);
+            }
+
+            // ダミー判定
+            for(const dummy of dummies) {
+                if(!dummy.isAlive) continue;
+                const allMeshes = [dummy.body, dummy.leftArm, dummy.rightArm, dummy.leftLeg, dummy.rightLeg];
+                const dummyHits = ray.intersectObjects(allMeshes);
+                if(dummyHits.length > 0) {
+                    dummy.health--;
+                    if(dummy.health <= 0) {
+                        dummy.isAlive = false;
+                        dummy.group.scale.set(0, 0, 0);
+                    }
+                    return;
+                }
             }
         }
 
@@ -378,6 +465,44 @@
                 }
             }
             return false;
+        }
+
+        // --- ダミーの更新 ---
+        function updateDummies(delta) {
+            for(const dummy of dummies) {
+                if(!dummy.isAlive) continue;
+
+                // ランダムに方向変更
+                dummy.wanderTimer += delta;
+                if(dummy.wanderTimer > dummy.wanderInterval) {
+                    dummy.moveDir = Math.random() * Math.PI * 2;
+                    dummy.wanderInterval = 2 + Math.random() * 4;
+                    dummy.wanderTimer = 0;
+                }
+
+                // 移動
+                const moveSpeed = 0.15;
+                const newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed;
+                const newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed;
+
+                // 衝突判定
+                if(!checkCollision(newX, newZ, 0.35)) {
+                    dummy.group.position.x = newX;
+                    dummy.group.position.z = newZ;
+                    // 体の回転
+                    dummy.group.rotation.y = dummy.moveDir;
+                } else {
+                    // 障害物に当たったら方向変更
+                    dummy.moveDir = Math.random() * Math.PI * 2;
+                }
+
+                // 歩行アニメーション
+                const walkCycle = (Date.now() * 0.01) % (Math.PI * 2);
+                dummy.leftArm.rotation.z = Math.sin(walkCycle) * 0.3;
+                dummy.rightArm.rotation.z = Math.sin(walkCycle + Math.PI) * 0.3;
+                dummy.leftLeg.rotation.x = Math.sin(walkCycle) * 0.2;
+                dummy.rightLeg.rotation.x = Math.sin(walkCycle + Math.PI) * 0.2;
+            }
         }
 
         // --- メインループ ---
@@ -446,6 +571,9 @@
                 gunGroup.position.y = Math.sin(Date.now()*0.0025)*0.015;
                 gunGroup.position.z += (0 - gunGroup.position.z) * 0.18;
             }
+
+            // ダミーの更新
+            updateDummies(delta);
 
             camera.position.copy(playerPos);
             renderer.render(scene, camera);
