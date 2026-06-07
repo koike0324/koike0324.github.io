@@ -65,6 +65,34 @@
             text-align: right; line-height: 1.6;
         }
         #controls-guide.hidden { display: none; }
+
+        /* iPad対応 */
+        @supports (padding: max(0px)) {
+            #joystick-container {
+                bottom: max(40px, env(safe-area-inset-bottom));
+                left: max(40px, env(safe-area-inset-left));
+            }
+            #fire-button {
+                bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
+                right: max(40px, env(safe-area-inset-right));
+            }
+            #jump-button {
+                bottom: max(40px, env(safe-area-inset-bottom));
+                right: max(160px, calc(160px + env(safe-area-inset-right)));
+            }
+            #reload-button {
+                bottom: max(40px, env(safe-area-inset-bottom));
+                right: max(40px, env(safe-area-inset-right));
+            }
+            #controls-guide {
+                bottom: max(20px, env(safe-area-inset-bottom));
+                right: max(20px, env(safe-area-inset-right));
+            }
+            #ammo-display {
+                top: max(20px, env(safe-area-inset-top));
+                left: max(20px, env(safe-area-inset-left));
+            }
+        }
     </style>
 </head>
 <body>
@@ -101,6 +129,8 @@
 
         // --- デバイス判定 ---
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth > 600;
+        const isLandscape = window.innerWidth > window.innerHeight;
         
         // モバイルUIの表示制御
         if(isMobile) {
@@ -307,10 +337,12 @@
             lookStartY: null
         };
 
-        // --- 視点操作 (モバイル) ---
+        // --- 視点操作 (モバイル/iPad) ---
         window.addEventListener('touchstart', e => {
             for(const touch of e.touches) {
-                if(touch.clientX > window.innerWidth/2 && touchState.lookTouchId === null) {
+                // iPad: 右半分でも視点操作できるように調整
+                const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
+                if(touch.clientX > triggerPoint && touchState.lookTouchId === null) {
                     touchState.lookTouchId = touch.identifier;
                     touchState.lookStartX = touch.clientX;
                     touchState.lookStartY = touch.clientY;
@@ -341,7 +373,7 @@
             }
         });
 
-        // --- 移動ジョイスティック (モバイル) ---
+        // --- 移動ジョイスティック (モバイル/iPad) ---
         const joy = document.getElementById('joystick-container');
         const knob = document.getElementById('joystick-knob');
         let joyTouchId = null;
