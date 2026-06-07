@@ -210,21 +210,14 @@
 
         // ビルの構造（大きさを戻した）
         function createBuilding(x, z, w, d, h, floors) {
-            // 外壁
-            addBox(x, z, w, h, d, wallMat);
-            
-            // 窓を表現するため、異なる高さの層を追加
-            const floorHeight = h / floors;
-            for(let i = 1; i < floors; i++) {
-                const windowBox = new THREE.Mesh(
-                    new THREE.BoxGeometry(w * 0.9, 0.2, d * 0.9),
-                    new THREE.MeshStandardMaterial({color: 0x2a2a2a})
-                );
-                windowBox.position.set(x, floorHeight * i, z);
-                scene.add(windowBox);
-            }
+            // 外壁（4面、内部には衝突判定なし）
+            addBox(x - w/2, z, 0.5, h, d, wallMat, true);  // 左壁
+            addBox(x + w/2, z, 0.5, h, d, wallMat, true);  // 右壁
+            addBox(x, z - d/2, w, h, 0.5, wallMat, true);  // 奥壁
+            addBox(x, z + d/2, w, h, 0.5, wallMat, true);  // 手前壁
 
             // 内部の床を表現（衝突判定なし）
+            const floorHeight = h / floors;
             for(let i = 0; i <= floors; i++) {
                 const floorBox = new THREE.Mesh(
                     new THREE.BoxGeometry(w * 0.8, 0.1, d * 0.8),
@@ -343,7 +336,7 @@
         let yaw = 0, pitch = 0, velocityY = 0, isGrounded = true;
         let moveF = 0, moveR = 0;
         const playerPos = new THREE.Vector3(0, 1.6, 10);
-        const MOVE_SPEED = 0.08;  // ダミーと同じ速度に変更
+        const MOVE_SPEED = 0.15;  // 速度を上げた
         const PLAYER_RADIUS = 0.5;
 
         // UI取得
