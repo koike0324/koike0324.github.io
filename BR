@@ -3,67 +3,352 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>THE BACKROOMS - Level 0</title>
+<title>THE BACKROOMS</title>
 <style>
-  :root { --yellow:#d2c78a; --dark:#070806; }
-  * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; overflow:hidden; background:#050605; color:#eee; font-family:monospace; }
-  #game { position:relative; width:100vw; height:100vh; background:#bdb375; cursor:none; }
-  #game::before { content:""; position:absolute; inset:0; z-index:4; pointer-events:none; opacity:.16; mix-blend-mode:multiply; background:repeating-linear-gradient(0deg, transparent 0 2px, #514b2f 3px 4px); }
-  #room { position:absolute; inset:0; perspective:700px; overflow:hidden; background:#c4bb7d; }
-  .wall { position:absolute; background:#c8bf80; }
-  .wall.left { width:70%; height:100%; left:-25%; top:0; transform:skewY(13deg); transform-origin:right; background:linear-gradient(90deg,#8f895f,#c7bd7d 60%); }
-  .wall.right { width:70%; height:100%; right:-25%; top:0; transform:skewY(-13deg); transform-origin:left; background:linear-gradient(90deg,#c7bd7d 40%,#8e875c); }
-  .wall.back { width:34%; height:55%; left:33%; top:18%; background:#c1b876; box-shadow:inset 0 0 35px #8d8558; }
-  #floor { position:absolute; left:-20%; width:140%; height:70%; top:48%; transform:perspective(350px) rotateX(47deg); transform-origin:top; background:#988c56; background-image:repeating-linear-gradient(90deg,transparent 0 75px,#776b43 76px 78px), repeating-linear-gradient(0deg,transparent 0 55px,#756942 57px 60px); }
-  #ceiling { position:absolute; left:-20%; width:140%; height:53%; top:-18%; transform:perspective(500px) rotateX(-30deg); background:#e5dc9f; border-bottom:3px solid #9a905d; }
-  #light { position:absolute; z-index:3; top:9%; left:50%; width:17%; height:8px; transform:translateX(-50%); background:#fffbd2; box-shadow:0 0 24px 13px #fffbd2, 0 0 95px 34px #e6dd99; }
-  .stain { position:absolute; z-index:2; border-radius:50%; opacity:.18; filter:blur(5px); background:#706746; }
-  #stain1 { width:170px;height:80px;left:11%;top:27%; transform:rotate(-18deg); }
-  #stain2 { width:120px;height:50px;right:9%;top:64%; transform:rotate(20deg); }
-  #monster { display:none; position:absolute; z-index:5; left:50%; top:37%; transform:translate(-50%,-50%); width:90px;height:145px; background:#111; border-radius:45% 45% 12% 12%; box-shadow:0 0 35px #000; }
-  #monster::before { content:""; position:absolute; top:40px; left:19px; width:15px;height:15px;border-radius:50%;background:#ff423d;box-shadow:37px 0 #ff423d, 0 0 15px #f00, 37px 0 15px #f00; }
-  #hud { position:absolute; z-index:10; inset:0; pointer-events:none; text-shadow:0 2px 3px #000; }
-  #title { position:absolute; top:22px; left:26px; color:#fffbd1; font-size:clamp(15px,2vw,24px); letter-spacing:4px; }
-  #stats { position:absolute; left:26px; bottom:24px; font-size:14px; line-height:1.7; }
-  #message { position:absolute; width:100%; top:25%; text-align:center; font-size:clamp(16px,2.5vw,28px); color:#fffbd1; opacity:0; transition:opacity .5s; }
-  #cross { position:absolute; left:50%; top:50%; width:14px;height:14px; transform:translate(-50%,-50%); }
-  #cross:before,#cross:after { content:""; position:absolute;background:#fff;opacity:.7; }
-  #cross:before { width:14px;height:1px;top:6px; } #cross:after { width:1px;height:14px;left:6px; }
-  #start { position:absolute; z-index:20; inset:0; display:grid; place-items:center; background:rgba(4,5,3,.88); cursor:pointer; }
-  .card { max-width:520px; padding:38px; text-align:center; border:1px solid #aaa174; background:rgba(24,25,17,.8); box-shadow:0 0 45px #000; }
-  h1 { margin:0 0 8px; color:#e4d990; font-size:clamp(28px,6vw,60px); letter-spacing:8px; }
-  p { line-height:1.8; color:#c9c5a5; }
-  button { margin-top:16px; padding:13px 30px; border:1px solid #d9cd83; color:#17180e; background:#d7ca7a; font:inherit; cursor:pointer; }
-  button:hover { background:#fff0a5; }
-  .dark #room { filter:brightness(.35); } .dark #light { opacity:.7; }
-  .shake { animation:shake .18s linear; } @keyframes shake { 25%{transform:translate(5px,-3px)} 50%{transform:translate(-4px,3px)} 75%{transform:translate(3px,2px)} }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; background:#000; color:#fff; font-family:'Courier New',monospace; overflow:hidden; }
+  
+  #game-container { position:relative; width:100%; height:100%; }
+  
+  #viewport { position:absolute; width:100%; height:100%; background:#8b9d6f; overflow:hidden; }
+  
+  /* 3D透視風の壁 */
+  .corridor { position:absolute; width:100%; height:100%; }
+  .wall-segment { position:absolute; opacity:0.85; }
+  .wall-far { width:100%; height:40%; top:30%; background:linear-gradient(180deg,#9db087 0%,#7a8a5f 100%); }
+  .wall-ceiling { width:100%; height:30%; top:0%; background:linear-gradient(180deg,#a0a898 0%,#9db087 100%); }
+  .wall-floor { width:100%; height:30%; bottom:0%; background:linear-gradient(180deg,#6b7d52 0%,#5a6d41 100%); }
+  
+  /* 暗くなったエフェクト */
+  .darkness { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%); }
+  .vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.8) 100%); }
+  
+  /* 照明 */
+  .lights { position:absolute; width:100%; height:100%; }
+  .light-panel { position:absolute; background:linear-gradient(135deg,#fffef5 0%,#f9f7e8 100%); box-shadow:0 0 30px rgba(255,255,240,0.4); }
+  .light-broken { opacity:0.3; background:linear-gradient(135deg,#8b8b80 0%,#6b6b60 100%); box-shadow:0 0 10px rgba(100,100,80,0.2); }
+  .light-off { opacity:0; }
+  
+  /* アンビバレンスパーティクル */
+  .particle { position:absolute; background:rgba(255,255,255,0.15); border-radius:50%; }
+  
+  /* 床のテクスチャ */
+  .floor-pattern { position:absolute; width:100%; height:100%; background-image:repeating-linear-gradient(90deg,transparent 0,transparent 80px,rgba(0,0,0,0.1) 80px,rgba(0,0,0,0.1) 82px); }
+  
+  /* エンティティ */
+  #entity { position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); width:60px; height:120px; background:#1a1a1a; border-radius:8px 8px 15% 15%; opacity:0; z-index:50; }
+  #entity::before { content:''; position:absolute; top:20px; left:10px; width:8px; height:8px; background:#ff4444; border-radius:50%; box-shadow:24px 0 0 #ff4444, 0 0 12px 2px #ff4444, 24px 0 12px 2px #ff4444; }
+  
+  /* HUD */
+  #hud { position:absolute; z-index:100; width:100%; height:100%; pointer-events:none; }
+  #title { position:absolute; top:20px; left:30px; font-size:24px; font-weight:bold; color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.5); letter-spacing:3px; }
+  
+  .stats-panel { position:absolute; bottom:30px; left:30px; color:#ccc; font-size:13px; line-height:1.8; text-shadow:0 0 5px #000; }
+  .stat-line { margin:5px 0; }
+  .stat-label { display:inline-block; width:80px; }
+  .stat-value { color:#fff; font-weight:bold; }
+  
+  #health-bar { position:absolute; bottom:30px; right:30px; width:150px; height:8px; background:#333; border:1px solid #666; }
+  #health-fill { height:100%; background:linear-gradient(90deg,#4ade80,#22c55e); width:100%; transition:width 0.3s; }
+  
+  #message-box { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:500px; text-align:center; color:#fff; font-size:16px; opacity:0; transition:opacity 0.5s; text-shadow:0 0 10px #000; line-height:1.6; z-index:99; }
+  
+  #crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:20px; height:20px; }
+  .cross-h { position:absolute; width:10px; height:1px; background:#fff; top:9px; left:5px; opacity:0.6; }
+  .cross-v { position:absolute; width:1px; height:10px; background:#fff; left:9px; top:5px; opacity:0.6; }
+  
+  /* スタート画面 */
+  #start-screen { position:absolute; inset:0; display:grid; place-items:center; background:linear-gradient(135deg,#1a1a1a,#0d0d0d); z-index:200; }
+  .start-card { text-align:center; max-width:600px; padding:60px; border:2px solid #666; background:rgba(20,20,20,0.8); box-shadow:0 0 50px rgba(0,0,0,0.8); }
+  .start-card h1 { font-size:48px; margin-bottom:20px; color:#fff; letter-spacing:4px; text-shadow:0 0 20px rgba(255,255,255,0.3); }
+  .start-card p { color:#aaa; font-size:14px; line-height:1.8; margin:15px 0; }
+  .start-card button { margin-top:30px; padding:15px 40px; background:#4ade80; color:#000; border:none; font-weight:bold; cursor:pointer; font-size:14px; letter-spacing:1px; }
+  .start-card button:hover { background:#22c55e; }
+  
+  /* ゲームオーバー */
+  #game-over-screen { position:absolute; inset:0; display:none; grid-content:center; place-items:center; background:rgba(0,0,0,0.95); z-index:300; }
+  .gameover-card { text-align:center; color:#ff4444; }
+  .gameover-card h1 { font-size:60px; margin-bottom:20px; text-shadow:0 0 20px #ff4444; }
+  .gameover-card p { color:#aaa; font-size:14px; margin:10px 0; }
+  .gameover-card button { margin-top:20px; padding:12px 30px; background:#ff4444; color:#000; border:none; font-weight:bold; cursor:pointer; }
+  
+  /* アニメーション */
+  @keyframes flicker { 0%,19%,21%,23%,25%,54%,56%,100% { opacity:1; } 20%,24%,55% { opacity:0.4; } }
+  @keyframes drift { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-20px); } }
+  @keyframes screen-shake { 0%,100% { transform:translate(0); } 25% { transform:translate(-2px,2px); } 50% { transform:translate(2px,-2px); } 75% { transform:translate(-2px,-2px); } }
+  @keyframes pulse-fear { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+  
+  .light-flicker { animation:flicker 0.15s infinite; }
+  .entity-drift { animation:drift 4s ease-in-out infinite; }
+  .screen-shake { animation:screen-shake 0.15s linear; }
+  .fear-pulse { animation:pulse-fear 0.5s ease-in-out; }
+  
+  #viewport.pursuit { animation:screen-shake 0.1s linear infinite; }
 </style>
 </head>
 <body>
-<div id="game">
-  <div id="room"><div id="ceiling"></div><div class="wall left"></div><div class="wall right"></div><div class="wall back"></div><div id="floor"></div><div id="light"></div><div class="stain" id="stain1"></div><div class="stain" id="stain2"></div><div id="monster"></div></div>
-  <div id="hud"><div id="title">LEVEL 0 // THE BACKROOMS</div><div id="cross"></div><div id="message"></div><div id="stats">電池: <span id="battery">100</span>%<br>距離: <span id="distance">0</span> m</div></div>
-  <div id="start"><div class="card"><h1>BACKROOMS</h1><p>気づいたら、黄色い部屋にいた。<br>出口を探せ。何かに見つかる前に。</p><p>WASD / 矢印キーで移動　|　Fでライト　|　ESCで離脱</p><button id="begin">ENTER LEVEL 0</button></div></div>
+
+<div id="game-container">
+  <div id="viewport">
+    <div class="corridor">
+      <!-- 天井と壁 -->
+      <div class="wall-ceiling"></div>
+      <div class="wall-far"></div>
+      <div class="wall-floor"></div>
+      
+      <!-- 照明パネル -->
+      <div class="lights" id="lights-container"></div>
+      
+      <!-- テクスチャ -->
+      <div class="floor-pattern"></div>
+      
+      <!-- 暗さ -->
+      <div class="darkness"></div>
+      <div class="vignette"></div>
+    </div>
+    
+    <!-- エンティティ -->
+    <div id="entity"></div>
+    
+    <!-- 照準 -->
+    <div id="crosshair">
+      <div class="cross-h"></div>
+      <div class="cross-v"></div>
+    </div>
+    
+    <!-- HUD -->
+    <div id="hud">
+      <div id="title">LEVEL 0 // THE BACKROOMS</div>
+      
+      <div class="stats-panel">
+        <div class="stat-line">
+          <span class="stat-label">Location:</span>
+          <span class="stat-value" id="stat-location">Unknown</span>
+        </div>
+        <div class="stat-line">
+          <span class="stat-label">Distance:</span>
+          <span class="stat-value" id="stat-distance">0 m</span>
+        </div>
+        <div class="stat-line">
+          <span class="stat-label">Entities:</span>
+          <span class="stat-value" id="stat-entities">0</span>
+        </div>
+        <div class="stat-line">
+          <span class="stat-label">Sanity:</span>
+          <span class="stat-value" id="stat-sanity">100%</span>
+        </div>
+      </div>
+      
+      <div id="health-bar">
+        <div id="health-fill"></div>
+      </div>
+      
+      <div id="message-box"></div>
+    </div>
+  </div>
+  
+  <!-- スタート画面 -->
+  <div id="start-screen">
+    <div class="start-card">
+      <h1>THE BACKROOMS</h1>
+      <p>You wake up in a maze of endless yellow halls.</p>
+      <p>The fluorescent lights buzz endlessly.<br>Something is watching you.</p>
+      <p style="margin-top:30px; font-size:12px; color:#888;">
+        WASD / Arrow Keys to move | Space to sprint | ESC to pause<br>
+        Find your way out. Don't let them catch you.
+      </p>
+      <button id="start-button">ENTER LEVEL 0</button>
+    </div>
+  </div>
+  
+  <!-- ゲームオーバー -->
+  <div id="game-over-screen">
+    <div class="gameover-card">
+      <h1>NOPE.</h1>
+      <p>You couldn't escape.</p>
+      <p>The thing got you.</p>
+      <button id="restart-button">Try again?</button>
+    </div>
+  </div>
 </div>
+
 <script>
-(() => {
-  const game=document.querySelector('#game'), start=document.querySelector('#start'), begin=document.querySelector('#begin');
-  const batteryEl=document.querySelector('#battery'), distanceEl=document.querySelector('#distance'), msg=document.querySelector('#message'), monster=document.querySelector('#monster');
-  let running=false, battery=100, distance=0, flashlight=true, keys={}, last=0, danger=0, audio;
-  const say=(text,time=2200)=>{ msg.textContent=text; msg.style.opacity=1; clearTimeout(say.t); say.t=setTimeout(()=>msg.style.opacity=0,time); };
-  function beep(freq,dur=80){ try { audio ||= new (window.AudioContext||window.webkitAudioContext)(); const o=audio.createOscillator(),g=audio.createGain(); o.frequency.value=freq;o.type='sine';g.gain.value=.025;o.connect(g);g.connect(audio.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+dur/1000);o.stop(audio.currentTime+dur/1000); } catch(e){} }
-  function beginGame(){ running=true; start.style.display='none'; say('足音が聞こえる……',2500); beep(90,250); requestAnimationFrame(loop); }
-  begin.onclick=beginGame; start.addEventListener('click',e=>{if(e.target===start)beginGame();});
-  addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true; if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault(); if(e.key.toLowerCase()==='f'&&running){flashlight=!flashlight; game.classList.toggle('dark',!flashlight); say(flashlight?'ライト ON':'ライト OFF',800); beep(flashlight?500:180);}});
-  addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
-  function loop(t){ if(!running)return; const dt=Math.min((t-last)/1000||0,.05);last=t; const moving=keys.w||keys.a||keys.s||keys.d||keys.arrowup||keys.arrowdown||keys.arrowleft||keys.arrowright;
-    if(moving){distance+=dt*2.2; distanceEl.textContent=Math.floor(distance); if(flashlight){battery-=dt*1.35; batteryEl.textContent=Math.max(0,Math.floor(battery)); if(battery<=0){flashlight=false;game.classList.add('dark');say('ライトの電池が切れた。',1800);}}}
-    danger+=dt*(moving?.08:-.03); if(danger>8){monster.style.display='block'; if(danger>10){say('走れ。そこにいる。',1500); game.classList.add('shake'); beep(55,180); setTimeout(()=>game.classList.remove('shake'),220); danger=6;} } else if(danger<5)monster.style.display='none';
-    if(distance>120){say('遠くに出口のような光が見えた……',5000); distance=0; danger=0;}
-    requestAnimationFrame(loop);
+const game = {
+  running: false,
+  paused: false,
+  distance: 0,
+  sanity: 100,
+  entities_near: 0,
+  pursuit: false,
+  pursuit_intensity: 0,
+  fear_level: 0,
+  last_time: 0,
+  audio_ctx: null,
+  keys: {},
+  
+  viewport: document.querySelector('#viewport'),
+  entity: document.querySelector('#entity'),
+  messageBox: document.querySelector('#message-box'),
+  statDistance: document.querySelector('#stat-distance'),
+  statEntities: document.querySelector('#stat-entities'),
+  statSanity: document.querySelector('#stat-sanity'),
+  healthFill: document.querySelector('#health-fill'),
+  startScreen: document.querySelector('#start-screen'),
+  gameOverScreen: document.querySelector('#game-over-screen'),
+  lightsContainer: document.querySelector('#lights-container'),
+  
+  init() {
+    document.querySelector('#start-button').onclick = () => this.start();
+    document.querySelector('#restart-button').onclick = () => {
+      location.reload();
+    };
+    
+    addEventListener('keydown', e => {
+      this.keys[e.key.toLowerCase()] = true;
+      if (e.key === ' ' || ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+    addEventListener('keyup', e => {
+      this.keys[e.key.toLowerCase()] = false;
+    });
+    
+    this.createLights();
+  },
+  
+  start() {
+    this.running = true;
+    this.startScreen.style.display = 'none';
+    this.say("You wake up. Where are you?", 3000);
+    this.beep(80, 300);
+    requestAnimationFrame(t => this.loop(t));
+  },
+  
+  createLights() {
+    const count = 8;
+    const spacing = 100 / count;
+    for (let i = 0; i < count; i++) {
+      const panel = document.createElement('div');
+      panel.className = 'light-panel';
+      panel.style.left = (spacing * i) + '%';
+      panel.style.top = '32%';
+      panel.style.width = (spacing * 0.8) + '%';
+      panel.style.height = '15px';
+      if (Math.random() > 0.7) {
+        panel.classList.add('light-broken');
+      }
+      this.lightsContainer.appendChild(panel);
+      
+      if (panel.classList.contains('light-broken')) {
+        panel.classList.add('light-flicker');
+      }
+    }
+  },
+  
+  say(text, duration = 2500) {
+    this.messageBox.textContent = text;
+    this.messageBox.style.opacity = '1';
+    clearTimeout(this.say_timeout);
+    this.say_timeout = setTimeout(() => {
+      this.messageBox.style.opacity = '0';
+    }, duration);
+  },
+  
+  beep(freq, duration = 150, type = 'sine') {
+    try {
+      if (!this.audio_ctx) {
+        this.audio_ctx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = this.audio_ctx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.value = 0.02;
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+      osc.stop(ctx.currentTime + duration / 1000);
+    } catch (e) {}
+  },
+  
+  loop(t) {
+    if (!this.running) return;
+    
+    const dt = Math.min((t - this.last_time) / 1000 || 0, 0.05);
+    this.last_time = t;
+    
+    const moving = this.keys.w || this.keys.arrowup || 
+                   this.keys.s || this.keys.arrowdown || 
+                   this.keys.a || this.keys.arrowleft || 
+                   this.keys.d || this.keys.arrowright;
+    
+    if (moving) {
+      const speed = this.keys[' '] ? 35 : 18;
+      this.distance += dt * speed;
+      this.statDistance.textContent = Math.floor(this.distance) + ' m';
+      this.sanity -= dt * (this.keys[' '] ? 3 : 1);
+      this.sanity = Math.max(0, this.sanity);
+      this.statSanity.textContent = Math.floor(this.sanity) + '%';
+      this.healthFill.style.width = this.sanity + '%';
+    }
+    
+    if (this.sanity > 70) {
+      this.pursuit_intensity -= dt * 0.3;
+    } else {
+      this.pursuit_intensity += dt * 0.5;
+    }
+    
+    this.pursuit_intensity = Math.max(0, Math.min(3, this.pursuit_intensity));
+    
+    if (this.pursuit_intensity > 1.5) {
+      this.entity.style.opacity = Math.min(1, 0.3 + this.pursuit_intensity * 0.2);
+      this.entities_near = Math.round(this.pursuit_intensity);
+      this.statEntities.textContent = this.entities_near;
+      
+      if (this.pursuit_intensity > 2) {
+        this.viewport.classList.add('pursuit');
+      } else {
+        this.viewport.classList.remove('pursuit');
+      }
+      
+      if (!this.pursuit && this.pursuit_intensity > 2.2) {
+        this.pursuit = true;
+        this.say("RUN.", 2000);
+        this.beep(40, 500, 'sine');
+      }
+    } else {
+      this.entity.style.opacity = '0';
+      this.entities_near = 0;
+      this.statEntities.textContent = '0';
+      this.viewport.classList.remove('pursuit');
+      this.pursuit = false;
+    }
+    
+    if (this.pursuit_intensity > 2.8) {
+      this.gameOverScreen.style.display = 'grid';
+      this.running = false;
+      this.beep(20, 800, 'sine');
+      return;
+    }
+    
+    if (this.distance > 250) {
+      this.say("A door. An exit. You made it.", 5000);
+      this.say("Welcome back.", 3000);
+      this.running = false;
+      return;
+    }
+    
+    requestAnimationFrame(t => this.loop(t));
   }
-})();
+};
+
+game.init();
 </script>
+
 </body>
 </html>
