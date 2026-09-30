@@ -1,1 +1,69 @@
-
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE BACKROOMS - Level 0</title>
+<style>
+  :root { --yellow:#d2c78a; --dark:#070806; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#050605; color:#eee; font-family:monospace; }
+  #game { position:relative; width:100vw; height:100vh; background:#bdb375; cursor:none; }
+  #game::before { content:""; position:absolute; inset:0; z-index:4; pointer-events:none; opacity:.16; mix-blend-mode:multiply; background:repeating-linear-gradient(0deg, transparent 0 2px, #514b2f 3px 4px); }
+  #room { position:absolute; inset:0; perspective:700px; overflow:hidden; background:#c4bb7d; }
+  .wall { position:absolute; background:#c8bf80; }
+  .wall.left { width:70%; height:100%; left:-25%; top:0; transform:skewY(13deg); transform-origin:right; background:linear-gradient(90deg,#8f895f,#c7bd7d 60%); }
+  .wall.right { width:70%; height:100%; right:-25%; top:0; transform:skewY(-13deg); transform-origin:left; background:linear-gradient(90deg,#c7bd7d 40%,#8e875c); }
+  .wall.back { width:34%; height:55%; left:33%; top:18%; background:#c1b876; box-shadow:inset 0 0 35px #8d8558; }
+  #floor { position:absolute; left:-20%; width:140%; height:70%; top:48%; transform:perspective(350px) rotateX(47deg); transform-origin:top; background:#988c56; background-image:repeating-linear-gradient(90deg,transparent 0 75px,#776b43 76px 78px), repeating-linear-gradient(0deg,transparent 0 55px,#756942 57px 60px); }
+  #ceiling { position:absolute; left:-20%; width:140%; height:53%; top:-18%; transform:perspective(500px) rotateX(-30deg); background:#e5dc9f; border-bottom:3px solid #9a905d; }
+  #light { position:absolute; z-index:3; top:9%; left:50%; width:17%; height:8px; transform:translateX(-50%); background:#fffbd2; box-shadow:0 0 24px 13px #fffbd2, 0 0 95px 34px #e6dd99; }
+  .stain { position:absolute; z-index:2; border-radius:50%; opacity:.18; filter:blur(5px); background:#706746; }
+  #stain1 { width:170px;height:80px;left:11%;top:27%; transform:rotate(-18deg); }
+  #stain2 { width:120px;height:50px;right:9%;top:64%; transform:rotate(20deg); }
+  #monster { display:none; position:absolute; z-index:5; left:50%; top:37%; transform:translate(-50%,-50%); width:90px;height:145px; background:#111; border-radius:45% 45% 12% 12%; box-shadow:0 0 35px #000; }
+  #monster::before { content:""; position:absolute; top:40px; left:19px; width:15px;height:15px;border-radius:50%;background:#ff423d;box-shadow:37px 0 #ff423d, 0 0 15px #f00, 37px 0 15px #f00; }
+  #hud { position:absolute; z-index:10; inset:0; pointer-events:none; text-shadow:0 2px 3px #000; }
+  #title { position:absolute; top:22px; left:26px; color:#fffbd1; font-size:clamp(15px,2vw,24px); letter-spacing:4px; }
+  #stats { position:absolute; left:26px; bottom:24px; font-size:14px; line-height:1.7; }
+  #message { position:absolute; width:100%; top:25%; text-align:center; font-size:clamp(16px,2.5vw,28px); color:#fffbd1; opacity:0; transition:opacity .5s; }
+  #cross { position:absolute; left:50%; top:50%; width:14px;height:14px; transform:translate(-50%,-50%); }
+  #cross:before,#cross:after { content:""; position:absolute;background:#fff;opacity:.7; }
+  #cross:before { width:14px;height:1px;top:6px; } #cross:after { width:1px;height:14px;left:6px; }
+  #start { position:absolute; z-index:20; inset:0; display:grid; place-items:center; background:rgba(4,5,3,.88); cursor:pointer; }
+  .card { max-width:520px; padding:38px; text-align:center; border:1px solid #aaa174; background:rgba(24,25,17,.8); box-shadow:0 0 45px #000; }
+  h1 { margin:0 0 8px; color:#e4d990; font-size:clamp(28px,6vw,60px); letter-spacing:8px; }
+  p { line-height:1.8; color:#c9c5a5; }
+  button { margin-top:16px; padding:13px 30px; border:1px solid #d9cd83; color:#17180e; background:#d7ca7a; font:inherit; cursor:pointer; }
+  button:hover { background:#fff0a5; }
+  .dark #room { filter:brightness(.35); } .dark #light { opacity:.7; }
+  .shake { animation:shake .18s linear; } @keyframes shake { 25%{transform:translate(5px,-3px)} 50%{transform:translate(-4px,3px)} 75%{transform:translate(3px,2px)} }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="room"><div id="ceiling"></div><div class="wall left"></div><div class="wall right"></div><div class="wall back"></div><div id="floor"></div><div id="light"></div><div class="stain" id="stain1"></div><div class="stain" id="stain2"></div><div id="monster"></div></div>
+  <div id="hud"><div id="title">LEVEL 0 // THE BACKROOMS</div><div id="cross"></div><div id="message"></div><div id="stats">電池: <span id="battery">100</span>%<br>距離: <span id="distance">0</span> m</div></div>
+  <div id="start"><div class="card"><h1>BACKROOMS</h1><p>気づいたら、黄色い部屋にいた。<br>出口を探せ。何かに見つかる前に。</p><p>WASD / 矢印キーで移動　|　Fでライト　|　ESCで離脱</p><button id="begin">ENTER LEVEL 0</button></div></div>
+</div>
+<script>
+(() => {
+  const game=document.querySelector('#game'), start=document.querySelector('#start'), begin=document.querySelector('#begin');
+  const batteryEl=document.querySelector('#battery'), distanceEl=document.querySelector('#distance'), msg=document.querySelector('#message'), monster=document.querySelector('#monster');
+  let running=false, battery=100, distance=0, flashlight=true, keys={}, last=0, danger=0, audio;
+  const say=(text,time=2200)=>{ msg.textContent=text; msg.style.opacity=1; clearTimeout(say.t); say.t=setTimeout(()=>msg.style.opacity=0,time); };
+  function beep(freq,dur=80){ try { audio ||= new (window.AudioContext||window.webkitAudioContext)(); const o=audio.createOscillator(),g=audio.createGain(); o.frequency.value=freq;o.type='sine';g.gain.value=.025;o.connect(g);g.connect(audio.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+dur/1000);o.stop(audio.currentTime+dur/1000); } catch(e){} }
+  function beginGame(){ running=true; start.style.display='none'; say('足音が聞こえる……',2500); beep(90,250); requestAnimationFrame(loop); }
+  begin.onclick=beginGame; start.addEventListener('click',e=>{if(e.target===start)beginGame();});
+  addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true; if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault(); if(e.key.toLowerCase()==='f'&&running){flashlight=!flashlight; game.classList.toggle('dark',!flashlight); say(flashlight?'ライト ON':'ライト OFF',800); beep(flashlight?500:180);}});
+  addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+  function loop(t){ if(!running)return; const dt=Math.min((t-last)/1000||0,.05);last=t; const moving=keys.w||keys.a||keys.s||keys.d||keys.arrowup||keys.arrowdown||keys.arrowleft||keys.arrowright;
+    if(moving){distance+=dt*2.2; distanceEl.textContent=Math.floor(distance); if(flashlight){battery-=dt*1.35; batteryEl.textContent=Math.max(0,Math.floor(battery)); if(battery<=0){flashlight=false;game.classList.add('dark');say('ライトの電池が切れた。',1800);}}}
+    danger+=dt*(moving?.08:-.03); if(danger>8){monster.style.display='block'; if(danger>10){say('走れ。そこにいる。',1500); game.classList.add('shake'); beep(55,180); setTimeout(()=>game.classList.remove('shake'),220); danger=6;} } else if(danger<5)monster.style.display='none';
+    if(distance>120){say('遠くに出口のような光が見えた……',5000); distance=0; danger=0;}
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
