@@ -7,82 +7,96 @@
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   html,body { width:100%; height:100%; background:#000; color:#fff; font-family:'Courier New',monospace; overflow:hidden; }
-  
+
   #game-container { position:relative; width:100%; height:100%; }
-  
   #viewport { position:absolute; width:100%; height:100%; background:#8b9d6f; overflow:hidden; }
-  
-  /* 3D透視風の壁 */
+
   .corridor { position:absolute; width:100%; height:100%; }
-  .wall-segment { position:absolute; opacity:0.85; }
   .wall-far { width:100%; height:40%; top:30%; background:linear-gradient(180deg,#9db087 0%,#7a8a5f 100%); }
   .wall-ceiling { width:100%; height:30%; top:0%; background:linear-gradient(180deg,#a0a898 0%,#9db087 100%); }
   .wall-floor { width:100%; height:30%; bottom:0%; background:linear-gradient(180deg,#6b7d52 0%,#5a6d41 100%); }
-  
-  /* 暗くなったエフェクト */
-  .darkness { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%); }
-  .vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.8) 100%); }
-  
-  /* 照明 */
+
+  .darkness { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 32%, rgba(0,0,0,0.62) 100%); }
+  .vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 48%, rgba(0,0,0,0.84) 100%); }
+
   .lights { position:absolute; width:100%; height:100%; }
   .light-panel { position:absolute; background:linear-gradient(135deg,#fffef5 0%,#f9f7e8 100%); box-shadow:0 0 30px rgba(255,255,240,0.4); }
-  .light-broken { opacity:0.3; background:linear-gradient(135deg,#8b8b80 0%,#6b6b60 100%); box-shadow:0 0 10px rgba(100,100,80,0.2); }
-  .light-off { opacity:0; }
-  
-  /* アンビバレンスパーティクル */
-  .particle { position:absolute; background:rgba(255,255,255,0.15); border-radius:50%; }
-  
-  /* 床のテクスチャ */
-  .floor-pattern { position:absolute; width:100%; height:100%; background-image:repeating-linear-gradient(90deg,transparent 0,transparent 80px,rgba(0,0,0,0.1) 80px,rgba(0,0,0,0.1) 82px); }
-  
-  /* エンティティ */
-  #entity { position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); width:60px; height:120px; background:#1a1a1a; border-radius:8px 8px 15% 15%; opacity:0; z-index:50; }
-  #entity::before { content:''; position:absolute; top:20px; left:10px; width:8px; height:8px; background:#ff4444; border-radius:50%; box-shadow:24px 0 0 #ff4444, 0 0 12px 2px #ff4444, 24px 0 12px 2px #ff4444; }
-  
-  /* HUD */
+  .light-broken { opacity:0.28; background:linear-gradient(135deg,#8b8b80 0%,#6b6b60 100%); box-shadow:0 0 10px rgba(100,100,80,0.2); }
+
+  .floor-pattern { position:absolute; width:100%; height:100%; background-image:repeating-linear-gradient(90deg,transparent 0,transparent 80px,rgba(0,0,0,0.08) 80px,rgba(0,0,0,0.08) 82px); }
+
+  #entity {
+    position:absolute;
+    left:50%; top:59%;
+    transform:translate(-50%,-50%);
+    width:110px; height:170px;
+    background:linear-gradient(180deg,#121212 0%,#090909 100%);
+    border-radius:18px 18px 12px 12px;
+    box-shadow:0 0 30px rgba(0,0,0,0.7);
+    opacity:0;
+    z-index:50;
+    transition:opacity 0.2s ease;
+  }
+  #entity::before,
+  #entity::after {
+    content:'';
+    position:absolute;
+    left:18px;
+    top:30px;
+    width:16px; height:16px;
+    background:#ffefef;
+    border-radius:50%;
+    box-shadow:0 0 8px rgba(255,255,255,0.8), 0 0 18px rgba(255,50,50,0.2);
+  }
+  #entity::after {
+    left:auto; right:18px;
+  }
+  #entity .body {
+    position:absolute; inset:0;
+    border-radius:inherit;
+    background:linear-gradient(180deg,rgba(25,25,25,0.15),rgba(0,0,0,0.2));
+  }
+
   #hud { position:absolute; z-index:100; width:100%; height:100%; pointer-events:none; }
   #title { position:absolute; top:20px; left:30px; font-size:24px; font-weight:bold; color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.5); letter-spacing:3px; }
-  
+
   .stats-panel { position:absolute; bottom:30px; left:30px; color:#ccc; font-size:13px; line-height:1.8; text-shadow:0 0 5px #000; }
   .stat-line { margin:5px 0; }
   .stat-label { display:inline-block; width:80px; }
   .stat-value { color:#fff; font-weight:bold; }
-  
+
   #health-bar { position:absolute; bottom:30px; right:30px; width:150px; height:8px; background:#333; border:1px solid #666; }
   #health-fill { height:100%; background:linear-gradient(90deg,#4ade80,#22c55e); width:100%; transition:width 0.3s; }
-  
+
   #message-box { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:500px; text-align:center; color:#fff; font-size:16px; opacity:0; transition:opacity 0.5s; text-shadow:0 0 10px #000; line-height:1.6; z-index:99; }
-  
+
   #crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:20px; height:20px; }
   .cross-h { position:absolute; width:10px; height:1px; background:#fff; top:9px; left:5px; opacity:0.6; }
   .cross-v { position:absolute; width:1px; height:10px; background:#fff; left:9px; top:5px; opacity:0.6; }
-  
-  /* スタート画面 */
+
   #start-screen { position:absolute; inset:0; display:grid; place-items:center; background:linear-gradient(135deg,#1a1a1a,#0d0d0d); z-index:200; }
   .start-card { text-align:center; max-width:600px; padding:60px; border:2px solid #666; background:rgba(20,20,20,0.8); box-shadow:0 0 50px rgba(0,0,0,0.8); }
   .start-card h1 { font-size:48px; margin-bottom:20px; color:#fff; letter-spacing:4px; text-shadow:0 0 20px rgba(255,255,255,0.3); }
   .start-card p { color:#aaa; font-size:14px; line-height:1.8; margin:15px 0; }
   .start-card button { margin-top:30px; padding:15px 40px; background:#4ade80; color:#000; border:none; font-weight:bold; cursor:pointer; font-size:14px; letter-spacing:1px; }
   .start-card button:hover { background:#22c55e; }
-  
-  /* ゲームオーバー */
-  #game-over-screen { position:absolute; inset:0; display:none; grid-content:center; place-items:center; background:rgba(0,0,0,0.95); z-index:300; }
+
+  #game-over-screen { position:absolute; inset:0; display:none; place-items:center; background:rgba(0,0,0,0.95); z-index:300; }
   .gameover-card { text-align:center; color:#ff4444; }
   .gameover-card h1 { font-size:60px; margin-bottom:20px; text-shadow:0 0 20px #ff4444; }
   .gameover-card p { color:#aaa; font-size:14px; margin:10px 0; }
   .gameover-card button { margin-top:20px; padding:12px 30px; background:#ff4444; color:#000; border:none; font-weight:bold; cursor:pointer; }
-  
-  /* アニメーション */
+
   @keyframes flicker { 0%,19%,21%,23%,25%,54%,56%,100% { opacity:1; } 20%,24%,55% { opacity:0.4; } }
   @keyframes drift { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-20px); } }
   @keyframes screen-shake { 0%,100% { transform:translate(0); } 25% { transform:translate(-2px,2px); } 50% { transform:translate(2px,-2px); } 75% { transform:translate(-2px,-2px); } }
   @keyframes pulse-fear { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
-  
+
   .light-flicker { animation:flicker 0.15s infinite; }
   .entity-drift { animation:drift 4s ease-in-out infinite; }
-  .screen-shake { animation:screen-shake 0.15s linear; }
+  .screen-shake { animation:screen-shake 0.1s linear infinite; }
   .fear-pulse { animation:pulse-fear 0.5s ease-in-out; }
-  
+
   #viewport.pursuit { animation:screen-shake 0.1s linear infinite; }
 </style>
 </head>
@@ -91,63 +105,37 @@
 <div id="game-container">
   <div id="viewport">
     <div class="corridor">
-      <!-- 天井と壁 -->
       <div class="wall-ceiling"></div>
       <div class="wall-far"></div>
       <div class="wall-floor"></div>
-      
-      <!-- 照明パネル -->
       <div class="lights" id="lights-container"></div>
-      
-      <!-- テクスチャ -->
       <div class="floor-pattern"></div>
-      
-      <!-- 暗さ -->
       <div class="darkness"></div>
       <div class="vignette"></div>
     </div>
-    
-    <!-- エンティティ -->
-    <div id="entity"></div>
-    
-    <!-- 照準 -->
+
+    <div id="entity" class="entity-drift"><div class="body"></div></div>
+
     <div id="crosshair">
       <div class="cross-h"></div>
       <div class="cross-v"></div>
     </div>
-    
-    <!-- HUD -->
+
     <div id="hud">
       <div id="title">LEVEL 0 // THE BACKROOMS</div>
-      
+
       <div class="stats-panel">
-        <div class="stat-line">
-          <span class="stat-label">Location:</span>
-          <span class="stat-value" id="stat-location">Unknown</span>
-        </div>
-        <div class="stat-line">
-          <span class="stat-label">Distance:</span>
-          <span class="stat-value" id="stat-distance">0 m</span>
-        </div>
-        <div class="stat-line">
-          <span class="stat-label">Entities:</span>
-          <span class="stat-value" id="stat-entities">0</span>
-        </div>
-        <div class="stat-line">
-          <span class="stat-label">Sanity:</span>
-          <span class="stat-value" id="stat-sanity">100%</span>
-        </div>
+        <div class="stat-line"><span class="stat-label">Location:</span><span class="stat-value" id="stat-location">Unknown</span></div>
+        <div class="stat-line"><span class="stat-label">Distance:</span><span class="stat-value" id="stat-distance">0 m</span></div>
+        <div class="stat-line"><span class="stat-label">Entities:</span><span class="stat-value" id="stat-entities">0</span></div>
+        <div class="stat-line"><span class="stat-label">Sanity:</span><span class="stat-value" id="stat-sanity">100%</span></div>
       </div>
-      
-      <div id="health-bar">
-        <div id="health-fill"></div>
-      </div>
-      
+
+      <div id="health-bar"><div id="health-fill"></div></div>
       <div id="message-box"></div>
     </div>
   </div>
-  
-  <!-- スタート画面 -->
+
   <div id="start-screen">
     <div class="start-card">
       <h1>THE BACKROOMS</h1>
@@ -160,8 +148,7 @@
       <button id="start-button">ENTER LEVEL 0</button>
     </div>
   </div>
-  
-  <!-- ゲームオーバー -->
+
   <div id="game-over-screen">
     <div class="gameover-card">
       <h1>NOPE.</h1>
@@ -175,17 +162,15 @@
 <script>
 const game = {
   running: false,
-  paused: false,
   distance: 0,
   sanity: 100,
-  entities_near: 0,
-  pursuit: false,
   pursuit_intensity: 0,
-  fear_level: 0,
   last_time: 0,
   audio_ctx: null,
   keys: {},
-  
+  entityVisible: false,
+  entityTimer: 0,
+
   viewport: document.querySelector('#viewport'),
   entity: document.querySelector('#entity'),
   messageBox: document.querySelector('#message-box'),
@@ -196,34 +181,35 @@ const game = {
   startScreen: document.querySelector('#start-screen'),
   gameOverScreen: document.querySelector('#game-over-screen'),
   lightsContainer: document.querySelector('#lights-container'),
-  
+
   init() {
     document.querySelector('#start-button').onclick = () => this.start();
-    document.querySelector('#restart-button').onclick = () => {
-      location.reload();
-    };
-    
+    document.querySelector('#restart-button').onclick = () => location.reload();
+
     addEventListener('keydown', e => {
       this.keys[e.key.toLowerCase()] = true;
-      if (e.key === ' ' || ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
-        e.preventDefault();
-      }
+      if (e.key === ' ' || ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
     });
     addEventListener('keyup', e => {
       this.keys[e.key.toLowerCase()] = false;
     });
-    
+
     this.createLights();
+    this.entity.style.opacity = '0.18';
+    this.entity.style.filter = 'brightness(0.7)';
+    this.entity.style.left = '50%';
+    this.entity.style.top = '58%';
+    this.entity.style.transform = 'translate(-50%, -50%)';
   },
-  
+
   start() {
     this.running = true;
     this.startScreen.style.display = 'none';
-    this.say("You wake up. Where are you?", 3000);
+    this.say('You wake up. Where are you?', 3000);
     this.beep(80, 300);
     requestAnimationFrame(t => this.loop(t));
   },
-  
+
   createLights() {
     const count = 8;
     const spacing = 100 / count;
@@ -236,113 +222,96 @@ const game = {
       panel.style.height = '15px';
       if (Math.random() > 0.7) {
         panel.classList.add('light-broken');
-      }
-      this.lightsContainer.appendChild(panel);
-      
-      if (panel.classList.contains('light-broken')) {
         panel.classList.add('light-flicker');
       }
+      this.lightsContainer.appendChild(panel);
     }
   },
-  
+
   say(text, duration = 2500) {
     this.messageBox.textContent = text;
     this.messageBox.style.opacity = '1';
     clearTimeout(this.say_timeout);
-    this.say_timeout = setTimeout(() => {
-      this.messageBox.style.opacity = '0';
-    }, duration);
+    this.say_timeout = setTimeout(() => this.messageBox.style.opacity = '0', duration);
   },
-  
-  beep(freq, duration = 150, type = 'sine') {
+
+  beep(freq, duration = 180, type = 'sine') {
     try {
-      if (!this.audio_ctx) {
-        this.audio_ctx = new (window.AudioContext || window.webkitAudioContext)();
-      }
+      if (!this.audio_ctx) this.audio_ctx = new (window.AudioContext || window.webkitAudioContext)();
       const ctx = this.audio_ctx;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      
       osc.type = type;
       osc.frequency.value = freq;
       gain.gain.value = 0.02;
-      
       osc.connect(gain);
       gain.connect(ctx.destination);
-      
       osc.start();
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
       osc.stop(ctx.currentTime + duration / 1000);
     } catch (e) {}
   },
-  
+
   loop(t) {
     if (!this.running) return;
-    
+
     const dt = Math.min((t - this.last_time) / 1000 || 0, 0.05);
     this.last_time = t;
-    
-    const moving = this.keys.w || this.keys.arrowup || 
-                   this.keys.s || this.keys.arrowdown || 
-                   this.keys.a || this.keys.arrowleft || 
+
+    const moving = this.keys.w || this.keys.arrowup ||
+                   this.keys.s || this.keys.arrowdown ||
+                   this.keys.a || this.keys.arrowleft ||
                    this.keys.d || this.keys.arrowright;
-    
+
     if (moving) {
-      const speed = this.keys[' '] ? 35 : 18;
+      const speed = this.keys[' '] ? 36 : 18;
       this.distance += dt * speed;
       this.statDistance.textContent = Math.floor(this.distance) + ' m';
-      this.sanity -= dt * (this.keys[' '] ? 3 : 1);
+      this.sanity -= dt * (this.keys[' '] ? 3 : 1.2);
       this.sanity = Math.max(0, this.sanity);
       this.statSanity.textContent = Math.floor(this.sanity) + '%';
       this.healthFill.style.width = this.sanity + '%';
     }
-    
-    if (this.sanity > 70) {
-      this.pursuit_intensity -= dt * 0.3;
+
+    const entityThreshold = 60;
+    if (this.distance > entityThreshold) {
+      this.entityVisible = true;
+      const visibility = Math.min(1, (this.distance - entityThreshold) / 80);
+      this.entity.style.opacity = String(0.18 + visibility * 0.82);
+      this.entity.style.filter = `brightness(${0.7 + visibility})`;
+      this.entity.style.left = 50 + Math.sin(this.distance * 0.15) * 9 + '%';
+      this.entity.style.top = 58 - Math.sin(this.distance * 0.12) * 5 + '%';
+      this.pursuit_intensity = Math.min(3, this.pursuit_intensity + dt * 1.1);
+      this.viewport.classList.add('pursuit');
     } else {
-      this.pursuit_intensity += dt * 0.5;
-    }
-    
-    this.pursuit_intensity = Math.max(0, Math.min(3, this.pursuit_intensity));
-    
-    if (this.pursuit_intensity > 1.5) {
-      this.entity.style.opacity = Math.min(1, 0.3 + this.pursuit_intensity * 0.2);
-      this.entities_near = Math.round(this.pursuit_intensity);
-      this.statEntities.textContent = this.entities_near;
-      
-      if (this.pursuit_intensity > 2) {
-        this.viewport.classList.add('pursuit');
-      } else {
-        this.viewport.classList.remove('pursuit');
-      }
-      
-      if (!this.pursuit && this.pursuit_intensity > 2.2) {
-        this.pursuit = true;
-        this.say("RUN.", 2000);
-        this.beep(40, 500, 'sine');
-      }
-    } else {
-      this.entity.style.opacity = '0';
-      this.entities_near = 0;
-      this.statEntities.textContent = '0';
+      this.entityVisible = false;
+      this.entity.style.opacity = '0.18';
+      this.pursuit_intensity = Math.max(0, this.pursuit_intensity - dt * 0.8);
       this.viewport.classList.remove('pursuit');
-      this.pursuit = false;
     }
-    
-    if (this.pursuit_intensity > 2.8) {
+
+    if (this.entityVisible) {
+      this.say('Something is behind you.', 700);
+      this.statEntities.textContent = '1';
+      this.beep(40 + this.pursuit_intensity * 10, 150, 'square');
+    } else {
+      this.statEntities.textContent = '0';
+    }
+
+    if (this.pursuit_intensity > 2.5 || this.sanity <= 0) {
+      this.entity.style.opacity = '1';
       this.gameOverScreen.style.display = 'grid';
       this.running = false;
-      this.beep(20, 800, 'sine');
+      this.beep(20, 800, 'sawtooth');
       return;
     }
-    
-    if (this.distance > 250) {
-      this.say("A door. An exit. You made it.", 5000);
-      this.say("Welcome back.", 3000);
+
+    if (this.distance > 260) {
+      this.say('A door. An exit. You made it.', 5000);
       this.running = false;
       return;
     }
-    
+
     requestAnimationFrame(t => this.loop(t));
   }
 };
