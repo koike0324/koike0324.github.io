@@ -3,152 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Backrooms FPS</title>
+    <title>Ultimate Mobile FPS Arena</title>
     <style>
-        html, body {
-            margin: 0; overflow: hidden; touch-action: none; background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            position: relative;
-        }
-        canvas {
-            display: block;
-            width: 100vw; height: 100vh;
-        }
-
-        #home-screen {
-            position: absolute;
-            inset: 0;
-            display: grid;
-            place-items: center;
-            background: rgba(10, 10, 10, 0.9);
-            z-index: 10;
-        }
-        .panel {
-            width: min(560px, 86vw);
-            padding: 34px 28px;
-            border: 2px solid rgba(255,255,255,0.26);
-            background: rgba(18,18,18,0.84);
-            box-shadow: 0 0 32px rgba(0,0,0,0.72);
-            text-align: center;
-        }
-        .panel h1 {
-            margin: 0 0 20px;
-            font-size: clamp(32px, 5vw, 58px);
-            letter-spacing: 4px;
-            color: #f2e7a0;
-            text-shadow: 0 0 18px rgba(255, 230, 120, 0.3);
-        }
-        .panel p {
-            color: #d2d2d2;
-            line-height: 1.8;
-            font-size: 14px;
-            margin: 12px 0;
-        }
-        .panel .start-button {
-            margin-top: 18px;
-            display: inline-block;
-            background: #d4b95a;
-            color: #111;
-            border: none;
-            padding: 14px 32px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            letter-spacing: 2px;
-        }
-        .panel .start-button:hover { background: #f0d878; }
-
-        #ui-layer { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
-        #crosshair {
-            position:absolute; top:50%; left:50%; width:18px; height:18px;
-            border:2px solid rgba(255,255,255,0.8); border-radius:50%;
-            transform: translate(-50%, -50%);
-        }
-        #crosshair::before, #crosshair::after {
-            content:''; position:absolute; background: rgba(255,255,255,0.8);
-        }
-        #crosshair::before { left:50%; top:-6px; width:2px; height:30px; transform:translateX(-50%); }
-        #crosshair::after { top:50%; left:-6px; width:30px; height:2px; transform:translateY(-50%); }
+        body { margin: 0; overflow: hidden; touch-action: none; background: #4a4a4a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
         #minimap-container {
-            position:absolute; top:20px; right:20px; width:150px; height:150px;
-            background: rgba(0,0,0,0.7); border:2px solid rgba(255,255,255,0.5); border-radius:4px; pointer-events:none;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            pointer-events: none;
         }
-        #minimap { width:100%; height:100%; }
+        #minimap {
+            width: 100%;
+            height: 100%;
+        }
+
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
+            border: 2px solid #fff; border-radius: 50%;
+            transform: translate(-50%, -50%); mix-blend-mode: difference;
+        }
 
         .btn {
-            position:absolute; pointer-events:auto; border-radius:50%; display:flex; align-items:center; justify-content:center;
-            color:white; font-weight:700; user-select:none; border:2px solid rgba(255,255,255,0.4); background:rgba(0,0,0,0.3);
-            transition:transform 0.05s;
+            position: absolute; pointer-events: auto; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; user-select: none;
+            border: 2px solid rgba(255,255,255,0.4);
+            background: rgba(0,0,0,0.3); transition: transform 0.05s;
         }
         .btn:active { transform: scale(0.9); background: rgba(0,0,0,0.5); }
 
         #joystick-container {
-            bottom:40px; left:40px; width:130px; height:130px; border-radius:50%; border:2px solid rgba(255,255,255,0.2);
-            position:absolute; pointer-events:auto; background: rgba(255,255,255,0.08); display:none;
+            bottom: 40px; left: 40px; width: 130px; height: 130px;
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.2);
+            position: absolute; pointer-events: auto; background: rgba(255,255,255,0.1);
+            display: none;
         }
-        #joystick-container.mobile-visible { display:block; }
+        #joystick-container.mobile-visible { display: block; }
         #joystick-knob {
-            position:absolute; top:40px; left:40px; width:50px; height:50px; background: rgba(255,255,255,0.4); border-radius:50%;
+            position: absolute; top: 40px; left: 40px; width: 50px; height: 50px;
+            background: rgba(255,255,255,0.4); border-radius: 50%;
         }
 
-        #fire-button { bottom:140px; right:40px; width:100px; height:100px; background: rgba(255,80,80,0.75); font-size:20px; display:none; }
-        #fire-button.mobile-visible { display:flex; }
-        #jump-button { bottom:40px; right:160px; width:80px; height:80px; background: rgba(50,150,255,0.6); display:none; }
-        #jump-button.mobile-visible { display:flex; }
-        #reload-button { bottom:40px; right:40px; width:80px; height:80px; background: rgba(80,80,80,0.8); font-size:13px; display:none; }
-        #reload-button.mobile-visible { display:flex; }
+        #fire-button { bottom: 140px; right: 40px; width: 100px; height: 100px; background: rgba(255, 50, 50, 0.6); font-size: 20px; display: none; }
+        #fire-button.mobile-visible { display: flex; }
+        #jump-button { bottom: 40px; right: 160px; width: 80px; height: 80px; background: rgba(50, 150, 255, 0.6); display: none; }
+        #jump-button.mobile-visible { display: flex; }
+        #reload-button { bottom: 40px; right: 40px; width: 80px; height: 80px; background: rgba(80, 80, 80, 0.8); font-size: 13px; display: none; }
+        #reload-button.mobile-visible { display: flex; }
 
-        #ammo-display { position:absolute; top:20px; left:20px; font-size:28px; font-weight:bold; color:#fff; text-shadow:1px 1px 0 rgba(0,0,0,0.8); }
-        #notice {
-            position:absolute; bottom:20px; left:50%; transform:translateX(-50%); color:#fff;
-            background: rgba(0,0,0,0.5); padding:8px 14px; border-radius:8px;
-            font-size:12px; letter-spacing:1px; opacity:0; transition: opacity .3s ease;
+        #reload-container {
+            position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%);
+            width: 140px; text-align: center; display: none;
         }
-        #notice.show { opacity:1; }
+        #reload-text { color: #ff3300; font-weight: bold; font-size: 14px; margin-bottom: 5px; text-shadow: 1px 1px 2px black; }
+        #reload-bar-bg { width: 100%; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; }
+        #reload-bar-fill { width: 0%; height: 100%; background: #00ffcc; }
+
+        #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #fff; text-shadow: 1px 1px 0 rgba(0,0,0,0.8); }
 
         #controls-guide {
-            position:absolute; bottom:20px; right:20px; color:#fff; font-size:12px;
-            background: rgba(0,0,0,0.7); padding:10px 15px; border-radius:8px; text-align:right; line-height:1.6;
+            position: absolute; bottom: 20px; right: 20px; color: #fff; font-size: 12px;
+            background: rgba(0,0,0,0.7); padding: 10px 15px; border-radius: 8px;
+            text-align: right; line-height: 1.6;
         }
-        #controls-guide.hidden { display:none; }
+        #controls-guide.hidden { display: none; }
 
         @supports (padding: max(0px)) {
-            #joystick-container { bottom: max(40px, env(safe-area-inset-bottom)); left: max(40px, env(safe-area-inset-left)); }
-            #fire-button { bottom: max(140px, calc(140px + env(safe-area-inset-bottom))); right: max(40px, env(safe-area-inset-right)); }
-            #jump-button { bottom: max(40px, env(safe-area-inset-bottom)); right: max(160px, calc(160px + env(safe-area-inset-right))); }
-            #reload-button { bottom: max(40px, env(safe-area-inset-bottom)); right: max(40px, env(safe-area-inset-right)); }
-            #controls-guide { bottom: max(20px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); }
-            #ammo-display { top: max(20px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); }
-            #minimap-container { top:max(20px, env(safe-area-inset-top)); right:max(20px, env(safe-area-inset-right)); }
-        }
-
-        @media (max-width: 820px) {
-            #controls-guide { display:none; }
-            #joystick-container { display:block; }
-            #fire-button, #jump-button, #reload-button { display:flex; }
+            #joystick-container {
+                bottom: max(40px, env(safe-area-inset-bottom));
+                left: max(40px, env(safe-area-inset-left));
+            }
+            #fire-button {
+                bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
+                right: max(40px, env(safe-area-inset-right));
+            }
+            #jump-button {
+                bottom: max(40px, env(safe-area-inset-bottom));
+                right: max(160px, calc(160px + env(safe-area-inset-right)));
+            }
+            #reload-button {
+                bottom: max(40px, env(safe-area-inset-bottom));
+                right: max(40px, env(safe-area-inset-right));
+            }
+            #controls-guide {
+                bottom: max(20px, env(safe-area-inset-bottom));
+                right: max(20px, env(safe-area-inset-right));
+            }
+            #ammo-display {
+                top: max(20px, env(safe-area-inset-top));
+                left: max(20px, env(safe-area-inset-left));
+            }
+            #minimap-container {
+                top: max(20px, env(safe-area-inset-top));
+                right: max(20px, env(safe-area-inset-right));
+            }
         }
     </style>
 </head>
 <body>
-    <div id="home-screen">
-        <div class="panel">
-            <h1>BACKROOMS</h1>
-            <p>あなたは黄色い廊下の中で目を覚ます。<br>ここは出口のない空間で、何かがいつも見ている。</p>
-            <p>WASD / 矢印キー: 移動<br>マウス: 視点操作<br>クリック: 攻撃<br>Space: ジャンプ<br>R: リロード</p>
-            <button class="start-button" id="start-button">ENTER</button>
-        </div>
-    </div>
 
     <div id="ui-layer">
         <div id="crosshair"></div>
         <div id="ammo-display">15 / 15</div>
-        <div id="minimap-container"><canvas id="minimap"></canvas></div>
+
+        <div id="reload-container">
+            <div id="reload-text">RELOADING</div>
+            <div id="reload-bar-bg"><div id="reload-bar-fill"></div></div>
+        </div>
+
+        <div id="minimap-container">
+            <canvas id="minimap"></canvas>
+        </div>
+
         <div id="joystick-container"><div id="joystick-knob"></div></div>
         <div id="fire-button" class="btn">FIRE</div>
         <div id="jump-button" class="btn">JUMP</div>
         <div id="reload-button" class="btn">RELOAD</div>
+
         <div id="controls-guide">
             <div>WASD: 移動</div>
             <div>Mouse: 視点</div>
@@ -156,7 +134,6 @@
             <div>Space: ジャンプ</div>
             <div>R: リロード</div>
         </div>
-        <div id="notice">LIGHTS OUT</div>
     </div>
 
     <script type="importmap">
@@ -166,23 +143,22 @@
     <script type="module">
         import * as THREE from 'three';
 
-        const homeScreen = document.getElementById('home-screen');
-        const startButton = document.getElementById('start-button');
-        const notice = document.getElementById('notice');
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth > 600;
 
-        let started = false;
-        startButton.addEventListener('click', () => {
-            homeScreen.style.display = 'none';
-            started = true;
-            if (document.body.requestPointerLock) document.body.requestPointerLock();
-            notice.classList.add('show');
-            setTimeout(() => notice.classList.remove('show'), 1200);
-        });
+        if(isMobile) {
+            document.getElementById('joystick-container').classList.add('mobile-visible');
+            document.getElementById('fire-button').classList.add('mobile-visible');
+            document.getElementById('jump-button').classList.add('mobile-visible');
+            document.getElementById('reload-button').classList.add('mobile-visible');
+            document.getElementById('controls-guide').classList.add('hidden');
+        } else {
+            document.getElementById('controls-guide').classList.remove('hidden');
+        }
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x404f36);
-        scene.fog = new THREE.Fog(0x404f36, 16, 80);
+        scene.background = new THREE.Color(0x4a4a4a);
+        scene.fog = new THREE.Fog(0x4a4a4a, 15, 80);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -190,245 +166,284 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        const hemiLight = new THREE.HemisphereLight(0xb9c7af, 0x241d1a, 1.2);
-        scene.add(hemiLight);
+        const light = new THREE.HemisphereLight(0x8899aa, 0x444444, 1.5);
+        scene.add(light);
 
-        const flashlight = new THREE.SpotLight(0xf5f1c7, 5.0, 35, Math.PI / 7, 0.75, 1.2);
-        flashlight.position.set(0, 1.4, 0);
-        flashlight.target.position.set(0, 0, -5);
-        flashlight.castShadow = false;
-        scene.add(flashlight);
-        scene.add(flashlight.target);
-
-        const floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(180, 180),
-            new THREE.MeshStandardMaterial({ color: 0x8b8a4c, roughness: 0.92, metalness: 0.05 })
-        );
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({color: 0x555555, roughness: 0.8}));
         floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0;
         scene.add(floor);
+        scene.add(new THREE.GridHelper(150, 75, 0x666666, 0x555555));
 
-        const ceiling = new THREE.Mesh(
-            new THREE.PlaneGeometry(180, 180),
-            new THREE.MeshStandardMaterial({ color: 0xd7d08f, roughness: 0.9 })
-        );
-        ceiling.rotation.x = Math.PI / 2;
-        ceiling.position.y = 4.5;
-        scene.add(ceiling);
-
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x687b4f, roughness: 0.98 });
-        const wallMat2 = new THREE.MeshStandardMaterial({ color: 0x5c6b42, roughness: 1 });
         const colliders = [];
+        const wallMat = new THREE.MeshStandardMaterial({color: 0x6b5d52, roughness: 0.9});
+        const damagedWallMat = new THREE.MeshStandardMaterial({color: 0x5a4d45, roughness: 0.95});
+        const metalMat = new THREE.MeshStandardMaterial({color: 0x4a4a4a, metalness: 0.8, roughness: 0.2});
 
-        function addWall(x, z, w, d, h, mat = wallMat) {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            wall.position.set(x, h/2, z);
-            scene.add(wall);
-            colliders.push({
-                minX: x - w/2, maxX: x + w/2,
-                minZ: z - d/2, maxZ: z + d/2,
-                width: w, height: h, depth: d
-            });
+        function addBox(x, z, w, h, d, mat, isInterior = false) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, h/2, z);
+            scene.add(m);
+
+            if(!isInterior) {
+                colliders.push({
+                    minX: x-w/2, maxX: x+w/2,
+                    minZ: z-d/2, maxZ: z+d/2,
+                    width: w, depth: d, height: h
+                });
+            }
         }
 
-        // endless hallways create backrooms feel
-        const hallLength = 80;
-        for (let i = -hallLength; i <= hallLength; i += 12) {
-            if (Math.abs(i) < 20) continue;
-            addWall(-20, i, 1.5, 10, 4.5, wallMat2);
-            addWall(20, i, 1.5, 10, 4.5, wallMat2);
+        function createBuilding(x, z, w, d, h, floors) {
+            addBox(x - w/2, z, 0.5, h, d, wallMat, true);
+            addBox(x + w/2, z, 0.5, h, d, wallMat, true);
+            addBox(x, z - d/2, w, h, 0.5, wallMat, true);
+            addBox(x, z + d/2, w, h, 0.5, wallMat, true);
+
+            const floorHeight = h / floors;
+            for(let i = 0; i <= floors; i++) {
+                const floorBox = new THREE.Mesh(
+                    new THREE.BoxGeometry(w * 0.8, 0.1, d * 0.8),
+                    new THREE.MeshStandardMaterial({color: 0x555555})
+                );
+                floorBox.position.set(x, floorHeight * i + 0.2, z);
+                scene.add(floorBox);
+            }
         }
 
-        addWall(0, -40, 38, 2, 4.5);
-        addWall(0, 40, 38, 2, 4.5);
-        addWall(-25, -10, 2, 60, 4.5);
-        addWall(25, -10, 2, 60, 4.5);
-        addWall(-30, 18, 2, 40, 4.5);
-        addWall(30, 18, 2, 40, 4.5);
+        createBuilding(0, -15, 12, 8, 25, 5);
+        addBox(-20, -25, 10, 15, 8, damagedWallMat);
+        addBox(20, -25, 10, 15, 8, wallMat);
+        addBox(0, -50, 20, 18, 10, wallMat);
+        addBox(-15, -35, 6, 8, 8, metalMat);
+        addBox(15, -35, 6, 8, 8, metalMat);
+        addBox(-35, -20, 4, 6, 4, damagedWallMat);
+        addBox(35, -20, 4, 6, 4, damagedWallMat);
+        addBox(-10, -60, 8, 3, 8, metalMat);
 
-        const dummyMat = new THREE.MeshStandardMaterial({ color: 0x7fa0d0, emissive: 0x0a0e1a, emissiveIntensity: 0.3 });
-        const entityGroup = new THREE.Group();
-        const entityBody = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.7, 0.6), dummyMat);
-        entityBody.position.y = 0.9;
-        entityGroup.add(entityBody);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 18, 18), new THREE.MeshStandardMaterial({ color: 0xdcdcdc }));
-        head.position.y = 1.9;
-        entityGroup.add(head);
-        scene.add(entityGroup);
-        entityGroup.visible = false;
+        function createDummy(x, z) {
+            const dummyGroup = new THREE.Group();
+            dummyGroup.position.set(x, 0, z);
 
-        const playerPos = new THREE.Vector3(0, 1.5, 18);
-        const velocity = new THREE.Vector3();
-        let yaw = 0, pitch = 0, jumpVel = 0;
-        let grounded = true;
-        let moveF = 0, moveR = 0;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.3), new THREE.MeshStandardMaterial({color: 0x4488ff}));
+            body.position.y = 1;
+            dummyGroup.add(body);
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({color: 0xffcc99}));
+            head.position.y = 2;
+            dummyGroup.add(head);
+
+            const armMat = new THREE.MeshStandardMaterial({color: 0xffcc99});
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), armMat);
+            leftArm.position.set(-0.4, 1.4, 0);
+            dummyGroup.add(leftArm);
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), armMat);
+            rightArm.position.set(0.4, 1.4, 0);
+            dummyGroup.add(rightArm);
+
+            const legMat = new THREE.MeshStandardMaterial({color: 0x222222});
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), legMat);
+            leftLeg.position.set(-0.15, 0.45, 0);
+            dummyGroup.add(leftLeg);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), legMat);
+            rightLeg.position.set(0.15, 0.45, 0);
+            dummyGroup.add(rightLeg);
+
+            scene.add(dummyGroup);
+            return {
+                group: dummyGroup,
+                body: body,
+                leftArm: leftArm,
+                rightArm: rightArm,
+                leftLeg: leftLeg,
+                rightLeg: rightLeg,
+                moveDir: Math.random() * Math.PI * 2,
+                wanderTimer: 0,
+                wanderInterval: 3 + Math.random() * 3,
+                velocity: new THREE.Vector3(0, 0, 0),
+                health: 3,
+                isAlive: true
+            };
+        }
+
+        const DUMMY_BOUNDS = { minX: -45, maxX: 45, minZ: -55, maxZ: 5 };
+        const dummies = [];
+        for(let i = 0; i < 3; i++) {
+            let x, z, valid;
+            do {
+                valid = true;
+                x = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
+                z = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
+                for(const c of colliders) {
+                    if(x > c.minX - 3 && x < c.maxX + 3 && z > c.minZ - 3 && z < c.maxZ + 3) {
+                        valid = false;
+                        break;
+                    }
+                }
+            } while(!valid);
+            dummies.push(createDummy(x, z));
+        }
 
         const targets = [];
-        const targetMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0xff0000, emissiveIntensity: 0.5 });
-        for (let i = 0; i < 8; i++) {
-            const target = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6, 0), targetMat);
-            const x = -22 + Math.random() * 44;
-            const z = -34 + Math.random() * 68;
-            target.position.set(x, 1.8 + Math.random() * 2.5, z);
-            scene.add(target);
-            targets.push(target);
+        const tGeo = new THREE.IcosahedronGeometry(0.8, 0);
+        const tMat = new THREE.MeshStandardMaterial({color: 0xff3300, emissive: 0xff0000, emissiveIntensity: 0.6});
+        for(let i=0; i<8; i++) {
+            const t = new THREE.Mesh(tGeo, tMat);
+            t.position.set(
+                DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX),
+                2 + Math.random() * 4,
+                DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ)
+            );
+            scene.add(t);
+            targets.push(t);
         }
 
-        let ammo = 15;
-        let reloading = false;
-        const RELOAD_TIME = 0.9;
-        let reloadTimer = 0;
-        const ammoDisplay = document.getElementById('ammo-display');
+        const gunGroup = new THREE.Group();
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.6), new THREE.MeshStandardMaterial({color: 0x222222}));
+        gun.position.set(0.3, -0.3, -0.5);
+        gunGroup.add(gun);
+        camera.add(gunGroup);
+        scene.add(camera);
+
+        let ammo = 15, isReloading = false, reloadTimer = 0;
+        const RELOAD_TIME = 0.85;
+        let yaw = 0, pitch = 0, velocityY = 0, isGrounded = true;
+        let moveF = 0, moveR = 0;
+        const playerPos = new THREE.Vector3(0, 1.6, 10);
+        const MOVE_SPEED = 0.15;
+        const PLAYER_RADIUS = 0.5;
+
+        const reloadUI = document.getElementById('reload-container');
+        const reloadBar = document.getElementById('reload-bar-fill');
+
         const minimapCanvas = document.getElementById('minimap');
         const minimapCtx = minimapCanvas.getContext('2d');
         minimapCanvas.width = 150;
         minimapCanvas.height = 150;
-
-        function updateAmmo() {
-            ammoDisplay.textContent = `${ammo} / 15`;
-        }
-        updateAmmo();
+        const MINIMAP_SCALE = 1.5 / 150;
 
         function updateMinimap() {
-            minimapCtx.clearRect(0,0,150,150);
-            minimapCtx.fillStyle = '#1a1a1a';
-            minimapCtx.fillRect(0,0,150,150);
-            minimapCtx.strokeStyle = '#666';
-            minimapCtx.lineWidth = 1;
-            for (let x = 0; x <= 150; x += 15) {
-                minimapCtx.beginPath(); minimapCtx.moveTo(x,0); minimapCtx.lineTo(x,150); minimapCtx.stroke();
-            }
-            for (let y = 0; y <= 150; y += 15) {
-                minimapCtx.beginPath(); minimapCtx.moveTo(0,y); minimapCtx.lineTo(150,y); minimapCtx.stroke();
+            minimapCtx.fillStyle = '#2a2a2a';
+            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+            minimapCtx.strokeStyle = '#444444';
+            minimapCtx.lineWidth = 0.5;
+            for(let i = 0; i <= 10; i++) {
+                minimapCtx.beginPath();
+                minimapCtx.moveTo(i * 15, 0);
+                minimapCtx.lineTo(i * 15, minimapCanvas.height);
+                minimapCtx.stroke();
             }
 
             minimapCtx.fillStyle = '#8b7d72';
-            for (const c of colliders) {
-                const px = ((c.minX + 50) / 100) * 150;
-                const py = ((-c.minZ + 50) / 100) * 150;
-                const pw = (c.width / 100) * 150;
-                const ph = (c.depth / 100) * 150;
+            for(const c of colliders) {
+                const px = (c.minX + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
+                const py = (-c.minZ + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+                const pw = (c.maxX - c.minX) * MINIMAP_SCALE;
+                const ph = (c.maxZ - c.minZ) * MINIMAP_SCALE;
                 minimapCtx.fillRect(px, py, pw, ph);
             }
 
-            minimapCtx.fillStyle = '#00ff66';
-            const px = ((playerPos.x + 50) / 100) * 150;
-            const py = ((-playerPos.z + 50) / 100) * 150;
-            minimapCtx.beginPath(); minimapCtx.arc(px, py, 5, 0, Math.PI * 2); minimapCtx.fill();
-            minimapCtx.strokeStyle = '#00ff66';
-            minimapCtx.beginPath(); minimapCtx.moveTo(px, py); minimapCtx.lineTo(px + Math.sin(yaw) * 10, py - Math.cos(yaw) * 10); minimapCtx.stroke();
-        }
-
-        function startReload() {
-            if (!reloading && ammo < 15) {
-                reloading = true;
-                reloadTimer = 0;
-            }
-        }
-
-        function shoot() {
-            if (!started) return;
-            if (ammo <= 0 || reloading) return;
-            ammo -= 1;
-            updateAmmo();
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-
-            const hitTargets = raycaster.intersectObjects(targets, false);
-            if (hitTargets.length > 0) {
-                const target = hitTargets[0].object;
-                target.position.set(-20 + Math.random() * 40, 1.6 + Math.random() * 2.8, -30 + Math.random() * 60);
+            minimapCtx.fillStyle = '#ff9999';
+            for(const dummy of dummies) {
+                if(!dummy.isAlive) continue;
+                const px = (dummy.group.position.x + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
+                const py = (-dummy.group.position.z + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+                minimapCtx.beginPath();
+                minimapCtx.arc(px, py, 3, 0, Math.PI * 2);
+                minimapCtx.fill();
             }
 
-            const entityPos = entityGroup.position.clone();
-            const toEntity = entityPos.sub(camera.position);
-            const distance = toEntity.length();
-            if (distance < 12) {
-                entityGroup.visible = true;
-                entityGroup.position.y = 0;
-                entityGroup.position.x = camera.position.x + Math.sin(yaw) * 2.5;
-                entityGroup.position.z = camera.position.z + Math.cos(yaw) * 2.5;
-            }
+            minimapCtx.fillStyle = '#00ff00';
+            const playerPx = (playerPos.x + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
+            const playerPy = (-playerPos.z + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+            minimapCtx.beginPath();
+            minimapCtx.arc(playerPx, playerPy, 4, 0, Math.PI * 2);
+            minimapCtx.fill();
+
+            minimapCtx.strokeStyle = '#00ff00';
+            minimapCtx.lineWidth = 2;
+            minimapCtx.beginPath();
+            minimapCtx.moveTo(playerPx, playerPy);
+            const dirX = Math.sin(yaw) * 8;
+            const dirZ = Math.cos(yaw) * 8;
+            minimapCtx.lineTo(playerPx + dirX, playerPy - dirZ);
+            minimapCtx.stroke();
         }
 
-        function checkCollision(x, z, radius = 0.7) {
-            for (const c of colliders) {
-                const closestX = Math.max(c.minX, Math.min(x, c.maxX));
-                const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
-                const dx = x - closestX;
-                const dz = z - closestZ;
-                if (dx * dx + dz * dz < radius * radius) return true;
-            }
-            return false;
-        }
-
-        window.addEventListener('keydown', (e) => {
-            const k = e.key.toLowerCase();
-            if (k === ' ') {
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if(e.key === ' ') {
                 e.preventDefault();
-                if (grounded) { jumpVel = 0.45; grounded = false; }
+                if(isGrounded) {
+                    velocityY = 0.36;
+                    isGrounded = false;
+                }
             }
-            if (k === 'r') startReload();
-            if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) {
+            if(e.key.toLowerCase() === 'r') {
                 e.preventDefault();
+                startReload();
             }
-            if (k === 'w' || k === 'arrowup') moveF = 1;
-            if (k === 's' || k === 'arrowdown') moveF = -1;
-            if (k === 'a' || k === 'arrowleft') moveR = -1;
-            if (k === 'd' || k === 'arrowright') moveR = 1;
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
         });
 
-        window.addEventListener('keyup', (e) => {
-            const k = e.key.toLowerCase();
-            if (k === 'w' || k === 'arrowup') moveF = 0;
-            if (k === 's' || k === 'arrowdown') moveF = 0;
-            if (k === 'a' || k === 'arrowleft') moveR = 0;
-            if (k === 'd' || k === 'arrowright') moveR = 0;
+        renderer.domElement.addEventListener('click', () => {
+            if(!isMobile && document.body.requestPointerLock) {
+                document.body.requestPointerLock();
+            }
         });
 
-        document.addEventListener('mousemove', (e) => {
-            if (started && document.pointerLockElement === document.body) {
-                yaw -= e.movementX * 0.0036;
-                pitch -= e.movementY * 0.0036;
-                pitch = Math.max(-1.4, Math.min(1.4, pitch));
+        document.addEventListener('mousemove', e => {
+            if(document.pointerLockElement === document.body) {
+                yaw -= e.movementX * 0.005;
+                pitch -= e.movementY * 0.005;
+                pitch = Math.max(-1.45, Math.min(1.45, pitch));
             }
         });
 
         renderer.domElement.addEventListener('click', () => {
-            if (!isMobile && started) shoot();
-            if (document.body.requestPointerLock) document.body.requestPointerLock();
+            if(!isMobile) shoot();
         });
 
-        const touchState = { lookTouchId: null, x: 0, y: 0 };
-        window.addEventListener('touchstart', (e) => {
-            for (const t of e.touches) {
-                const lookArea = window.innerWidth * 0.55;
-                if (t.clientX > lookArea && touchState.lookTouchId === null) {
-                    touchState.lookTouchId = t.identifier;
-                    touchState.x = t.clientX;
-                    touchState.y = t.clientY;
+        const touchState = {
+            lookTouchId: null,
+            lookStartX: null,
+            lookStartY: null
+        };
+
+        window.addEventListener('touchstart', e => {
+            for(const touch of e.touches) {
+                const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
+                if(touch.clientX > triggerPoint && touchState.lookTouchId === null) {
+                    touchState.lookTouchId = touch.identifier;
+                    touchState.lookStartX = touch.clientX;
+                    touchState.lookStartY = touch.clientY;
                     break;
                 }
             }
-        }, { passive: true });
+        });
 
-        window.addEventListener('touchmove', (e) => {
-            for (const t of e.touches) {
-                if (t.identifier === touchState.lookTouchId) {
-                    yaw -= (t.clientX - touchState.x) * 0.005;
-                    pitch -= (t.clientY - touchState.y) * 0.005;
-                    pitch = Math.max(-1.4, Math.min(1.4, pitch));
-                    touchState.x = t.clientX;
-                    touchState.y = t.clientY;
+        window.addEventListener('touchmove', e => {
+            for(const touch of e.touches) {
+                if(touch.identifier === touchState.lookTouchId) {
+                    yaw -= (touch.clientX - touchState.lookStartX) * 0.0055;
+                    pitch -= (touch.clientY - touchState.lookStartY) * 0.0055;
+                    pitch = Math.max(-1.45, Math.min(1.45, pitch));
+                    touchState.lookStartX = touch.clientX;
+                    touchState.lookStartY = touch.clientY;
                     break;
                 }
             }
-        }, { passive: true });
+        });
 
-        window.addEventListener('touchend', (e) => {
-            for (const t of e.changedTouches) {
-                if (t.identifier === touchState.lookTouchId) touchState.lookTouchId = null;
+        window.addEventListener('touchend', e => {
+            for(const touch of e.changedTouches) {
+                if(touch.identifier === touchState.lookTouchId) {
+                    touchState.lookTouchId = null;
+                    break;
+                }
             }
         });
 
@@ -436,112 +451,242 @@
         const knob = document.getElementById('joystick-knob');
         let joyTouchId = null;
 
-        if (isMobile) {
-            joy.classList.add('mobile-visible');
-            document.getElementById('fire-button').classList.add('mobile-visible');
-            document.getElementById('jump-button').classList.add('mobile-visible');
-            document.getElementById('reload-button').classList.add('mobile-visible');
-            document.getElementById('controls-guide').classList.add('hidden');
+        joy.addEventListener('touchstart', e => {
+            if(joyTouchId === null && e.touches.length > 0) {
+                joyTouchId = e.touches[0].identifier;
+            }
+        });
 
-            document.getElementById('fire-button').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); }, { passive: false });
-            document.getElementById('jump-button').addEventListener('touchstart', (e) => { e.preventDefault(); if (grounded) { jumpVel = 0.45; grounded = false; } }, { passive: false });
-            document.getElementById('reload-button').addEventListener('touchstart', (e) => { e.preventDefault(); startReload(); }, { passive: false });
-
-            joy.addEventListener('touchstart', (e) => {
-                if (joyTouchId === null && e.touches.length > 0) joyTouchId = e.touches[0].identifier;
-            }, { passive: true });
-
-            joy.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                for (const touch of e.touches) {
-                    if (touch.identifier === joyTouchId) {
-                        const r = joy.getBoundingClientRect();
-                        const dx = touch.clientX - (r.left + r.width / 2);
-                        const dy = touch.clientY - (r.top + r.height / 2);
-                        const dist = Math.min(Math.hypot(dx, dy), 50);
-                        const ang = dist > 0 ? Math.atan2(dy, dx) : 0;
-                        knob.style.transform = `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist}px)`;
-                        moveR = (dist / 50) * Math.cos(ang);
-                        moveF = -(dist / 50) * Math.sin(ang);
-                        break;
-                    }
+        joy.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for(const touch of e.touches) {
+                if(touch.identifier === joyTouchId) {
+                    const r = joy.getBoundingClientRect();
+                    const dx = touch.clientX - (r.left + r.width/2);
+                    const dy = touch.clientY - (r.top + r.height/2);
+                    const dist = Math.sqrt(dx*dx+dy*dy);
+                    const d = Math.min(dist, 50);
+                    const a = dist > 0 ? Math.atan2(dy, dx) : 0;
+                    knob.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
+                    moveR = (d/50) * Math.cos(a);
+                    moveF = -(d/50) * Math.sin(a);
+                    break;
                 }
-            }, { passive: false });
+            }
+        });
 
-            joy.addEventListener('touchend', (e) => {
-                for (const touch of e.changedTouches) {
-                    if (touch.identifier === joyTouchId) {
-                        moveR = 0; moveF = 0; knob.style.transform = 'translate(0,0)'; joyTouchId = null; break;
-                    }
+        joy.addEventListener('touchend', e => {
+            for(const touch of e.changedTouches) {
+                if(touch.identifier === joyTouchId) {
+                    moveF = 0;
+                    moveR = 0;
+                    knob.style.transform = 'translate(0,0)';
+                    joyTouchId = null;
+                    break;
                 }
-            }, { passive: true });
-        }
+            }
+        });
 
-        function animate() {
-            requestAnimationFrame(animate);
+        const ray = new THREE.Raycaster();
+        let lastShotTime = 0;
+        const SHOT_COOLDOWN = 0.1;
 
-            if (started) {
-                const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
-                const right = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+        function shoot() {
+            if(ammo <= 0 || isReloading) return;
+            const now = Date.now() / 1000;
+            if(now - lastShotTime < SHOT_COOLDOWN) return;
 
-                const moveVec = new THREE.Vector3();
-                moveVec.addScaledVector(forward, moveF);
-                moveVec.addScaledVector(right, moveR);
+            lastShotTime = now;
+            ammo--;
+            document.getElementById('ammo-display').innerText = `${ammo} / 15`;
+            gunGroup.position.z += 0.22;
 
-                if (moveVec.lengthSq() > 0) {
-                    moveVec.normalize().multiplyScalar(0.16);
-                    const nx = playerPos.x + moveVec.x;
-                    const nz = playerPos.z + moveVec.z;
-                    if (!checkCollision(nx, playerPos.z, 0.7)) playerPos.x = nx;
-                    if (!checkCollision(playerPos.x, nz, 0.7)) playerPos.z = nz;
-                }
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
 
-                playerPos.y += jumpVel;
-                jumpVel -= 0.012;
-                if (playerPos.y <= 1.5) {
-                    playerPos.y = 1.5;
-                    jumpVel = 0;
-                    grounded = true;
-                }
-
-                const entityDistance = entityGroup.position.distanceTo(camera.position);
-                if (entityDistance < 8) {
-                    entityGroup.visible = true;
-                    entityGroup.position.y = 0.1 + Math.sin(performance.now() * 0.005) * 0.3;
-                    entityGroup.position.x = camera.position.x + Math.sin(yaw + Math.PI) * (entityDistance * 0.7);
-                    entityGroup.position.z = camera.position.z + Math.cos(yaw + Math.PI) * (entityDistance * 0.7);
-                    entityGroup.lookAt(camera.position.x, camera.position.y + 0.8, camera.position.z);
-                } else {
-                    entityGroup.visible = false;
-                }
-
-                if (reloading) {
-                    reloadTimer += 1/60;
-                    if (reloadTimer >= RELOAD_TIME) {
-                        ammo = 15; updateAmmo(); reloading = false; reloadTimer = 0;
-                    }
-                }
-
-                updateMinimap();
+            const hits = ray.intersectObjects(targets);
+            if(hits.length > 0) {
+                const o = hits[0].object;
+                o.scale.set(0,0,0);
+                setTimeout(() => {
+                    o.scale.set(1,1,1);
+                    let newX, newZ, valid;
+                    do {
+                        valid = true;
+                        newX = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
+                        newZ = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
+                        for(const c of colliders) {
+                            if(newX > c.minX - 2 && newX < c.maxX + 2 && newZ > c.minZ - 2 && newZ < c.maxZ + 2) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                    } while(!valid);
+                    o.position.set(newX, 2+Math.random()*4, newZ);
+                }, 2000);
             }
 
-            const dir = new THREE.Euler(pitch, yaw, 0, 'YXZ');
-            camera.quaternion.setFromEuler(dir);
+            for(const dummy of dummies) {
+                if(!dummy.isAlive) continue;
+                const allMeshes = [dummy.body, dummy.leftArm, dummy.rightArm, dummy.leftLeg, dummy.rightLeg];
+                const dummyHits = ray.intersectObjects(allMeshes);
+                if(dummyHits.length > 0) {
+                    dummy.health--;
+                    if(dummy.health <= 0) {
+                        dummy.isAlive = false;
+                        dummy.group.scale.set(0, 0, 0);
+                    }
+                    return;
+                }
+            }
+        }
+
+        function startReload() {
+            if(!isReloading && ammo < 15) {
+                isReloading = true;
+                reloadTimer = 0;
+                reloadUI.style.display = 'block';
+            }
+        }
+
+        document.getElementById('fire-button').addEventListener('touchstart', e => {
+            e.preventDefault();
+            shoot();
+        });
+        document.getElementById('jump-button').addEventListener('touchstart', e => {
+            e.preventDefault();
+            if(isGrounded) {
+                velocityY = 0.36;
+                isGrounded = false;
+            }
+        });
+        document.getElementById('reload-button').addEventListener('touchstart', e => {
+            e.preventDefault();
+            startReload();
+        });
+
+        function checkCollision(x, z, radius) {
+            for(const c of colliders) {
+                const closestX = Math.max(c.minX, Math.min(x, c.maxX));
+                const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
+                const distX = x - closestX;
+                const distZ = z - closestZ;
+                const distSq = distX*distX + distZ*distZ;
+
+                if(distSq < radius*radius) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateDummies(delta) {
+            for(const dummy of dummies) {
+                if(!dummy.isAlive) continue;
+
+                dummy.wanderTimer += delta;
+                if(dummy.wanderTimer > dummy.wanderInterval) {
+                    dummy.moveDir = Math.random() * Math.PI * 2;
+                    dummy.wanderInterval = 2 + Math.random() * 4;
+                    dummy.wanderTimer = 0;
+                }
+
+                const moveSpeed = 0.08;
+                let newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed;
+                let newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed;
+
+                newX = Math.max(DUMMY_BOUNDS.minX, Math.min(newX, DUMMY_BOUNDS.maxX));
+                newZ = Math.max(DUMMY_BOUNDS.minZ, Math.min(newZ, DUMMY_BOUNDS.maxZ));
+
+                if(!checkCollision(newX, newZ, 0.35)) {
+                    dummy.group.position.x = newX;
+                    dummy.group.position.z = newZ;
+                    dummy.group.rotation.y = dummy.moveDir;
+                } else {
+                    dummy.moveDir = Math.random() * Math.PI * 2;
+                }
+
+                const walkCycle = (Date.now() * 0.01) % (Math.PI * 2);
+                dummy.leftArm.rotation.z = Math.sin(walkCycle) * 0.3;
+                dummy.rightArm.rotation.z = Math.sin(walkCycle + Math.PI) * 0.3;
+                dummy.leftLeg.rotation.x = Math.sin(walkCycle) * 0.2;
+                dummy.rightLeg.rotation.x = Math.sin(walkCycle + Math.PI) * 0.2;
+            }
+        }
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+
+            if(!isMobile) {
+                moveF = 0;
+                moveR = 0;
+                if(keys['w']) moveF += 1;
+                if(keys['s']) moveF -= 1;
+                if(keys['a']) moveR -= 1;
+                if(keys['d']) moveR += 1;
+            }
+
+            const fw = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+            fw.y = 0;
+            fw.normalize();
+            const rt = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), fw).negate();
+
+            const moveVec = new THREE.Vector3(
+                fw.x * moveF + rt.x * moveR,
+                0,
+                fw.z * moveF + rt.z * moveR
+            ).multiplyScalar(MOVE_SPEED);
+
+            const nX = playerPos.x + moveVec.x;
+            const nZ = playerPos.z + moveVec.z;
+
+            if(!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
+                playerPos.x = nX;
+            }
+            if(!checkCollision(playerPos.x, nZ, PLAYER_RADIUS)) {
+                playerPos.z = nZ;
+            }
+
+            velocityY -= 0.019;
+            playerPos.y += velocityY;
+            if(playerPos.y <= 1.6) {
+                playerPos.y = 1.6;
+                velocityY = 0;
+                isGrounded = true;
+            }
+
+            if(isReloading) {
+                reloadTimer += delta;
+                const p = Math.min(reloadTimer / RELOAD_TIME, 1);
+                reloadBar.style.width = (p * 100) + '%';
+                gunGroup.position.y = Math.sin(p * Math.PI) * -0.65;
+                if(reloadTimer >= RELOAD_TIME) {
+                    isReloading = false;
+                    ammo = 15;
+                    document.getElementById('ammo-display').innerText = '15 / 15';
+                    reloadUI.style.display = 'none';
+                    gunGroup.position.y = 0;
+                }
+            } else {
+                gunGroup.position.y = Math.sin(Date.now()*0.0025)*0.015;
+                gunGroup.position.z += (0 - gunGroup.position.z) * 0.18;
+            }
+
+            updateDummies(delta);
+            updateMinimap();
+
             camera.position.copy(playerPos);
-            flashlight.position.copy(camera.position);
-            flashlight.position.y += 0.2;
-            flashlight.target.position.copy(camera.position).add(new THREE.Vector3(Math.sin(yaw), Math.sin(pitch) * 0.6, Math.cos(yaw)).multiplyScalar(6));
             renderer.render(scene, camera);
         }
+        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
-        camera.position.copy(playerPos);
-        animate();
     </script>
 </body>
 </html>
