@@ -383,97 +383,86 @@
             if (currentGunModel) gunGroup.remove(currentGunModel);
 
             const gunContainer = new THREE.Group();
+            const gunMat = new THREE.MeshStandardMaterial({ color: 0x1d1d1d, metalness: 0.75, roughness: 0.35 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.8, roughness: 0.3 });
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x4f3f24, roughness: 0.9 });
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0x6b6b6b, metalness: 0.9, roughness: 0.25 });
 
             if (type === 'pistol') {
-                const slide = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.06, 0.08, 0.35),
-                    new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.9, roughness: 0.3})
-                );
-                slide.position.z = -0.05;
-                gunContainer.add(slide);
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.36), gunMat);
+                body.position.set(0, 0, -0.04);
+                gunContainer.add(body);
 
-                const grip = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.08, 0.15, 0.08),
-                    new THREE.MeshStandardMaterial({color: 0x4a3728, roughness: 0.8})
-                );
-                grip.position.set(0, -0.05, 0.08);
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.18, 0.09), woodMat);
+                grip.position.set(0, -0.13, 0.1);
                 gunContainer.add(grip);
 
-                const trigger = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.02, 0.03, 0.02),
-                    new THREE.MeshStandardMaterial({color: 0x0a0a0a})
-                );
-                trigger.position.set(0, 0.02, 0.02);
-                gunContainer.add(trigger);
+                const slide = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.2), darkMat);
+                slide.position.set(0, 0.08, -0.15);
+                gunContainer.add(slide);
+
+                const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 10), metalMat);
+                muzzle.rotation.z = Math.PI / 2;
+                muzzle.position.set(0, 0, -0.26);
+                gunContainer.add(muzzle);
             } else if (type === 'rifle') {
-                const barrel = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.03, 0.035, 0.7, 12),
-                    new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.85, roughness: 0.35})
-                );
+                const lower = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.14, 0.9), gunMat);
+                lower.position.set(0, 0, -0.15);
+                gunContainer.add(lower);
+
+                const upper = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.6), darkMat);
+                upper.position.set(0, 0.09, -0.05);
+                gunContainer.add(upper);
+
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.9, 12), metalMat);
                 barrel.rotation.z = Math.PI / 2;
-                barrel.position.z = -0.2;
+                barrel.position.set(0.08, 0.02, -0.55);
                 gunContainer.add(barrel);
 
-                const stock = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.08, 0.06, 0.25),
-                    new THREE.MeshStandardMaterial({color: 0x654321, roughness: 0.9})
-                );
-                stock.position.set(0, -0.02, 0.15);
+                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.28), woodMat);
+                stock.position.set(0, -0.02, 0.4);
                 gunContainer.add(stock);
 
-                const scope = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.04, 0.04, 0.12, 16),
-                    new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.95})
-                );
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.08), woodMat);
+                grip.position.set(0, -0.17, 0.12);
+                gunContainer.add(grip);
+
+                const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.18, 12), darkMat);
                 scope.rotation.z = Math.PI / 2;
-                scope.position.set(0.02, 0.06, 0.05);
+                scope.position.set(0.03, 0.12, -0.1);
                 gunContainer.add(scope);
 
-                const scopeGlass = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.035, 8, 8),
-                    new THREE.MeshStandardMaterial({color: 0x4488ff, metalness: 1.0, roughness: 0.0, emissive: 0x2244aa})
-                );
-                scopeGlass.position.set(-0.05, 0.06, 0.05);
+                const scopeGlass = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.05), new THREE.MeshStandardMaterial({ color: 0x88b8ff, emissive: 0x1d4ed8, emissiveIntensity: 0.5 }));
+                scopeGlass.position.set(0.08, 0.12, -0.1);
                 gunContainer.add(scopeGlass);
-
-                const trigger = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.02, 0.04, 0.02),
-                    new THREE.MeshStandardMaterial({color: 0x0a0a0a})
-                );
-                trigger.position.set(0, 0.05, 0.08);
-                gunContainer.add(trigger);
             } else if (type === 'shotgun') {
-                const barrel = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.055, 0.06, 0.5, 16),
-                    new THREE.MeshStandardMaterial({color: 0x0a0a0a, metalness: 0.9, roughness: 0.4})
-                );
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.7), gunMat);
+                body.position.set(0, 0, -0.06);
+                gunContainer.add(body);
+
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.82, 14), metalMat);
                 barrel.rotation.z = Math.PI / 2;
-                barrel.position.z = -0.1;
+                barrel.position.set(0.07, 0.02, -0.52);
                 gunContainer.add(barrel);
 
-                const pump = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.07, 0.08, 0.18),
-                    new THREE.MeshStandardMaterial({color: 0x1a1a1a})
-                );
-                pump.position.set(0, 0.02, 0.05);
-                gunContainer.add(pump);
-
-                const stock = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.09, 0.07, 0.2),
-                    new THREE.MeshStandardMaterial({color: 0x8B7355, roughness: 0.9})
-                );
-                stock.position.set(0, -0.02, 0.2);
+                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.32), woodMat);
+                stock.position.set(0, -0.02, 0.42);
                 gunContainer.add(stock);
 
-                const fore = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.08, 0.06, 0.15),
-                    new THREE.MeshStandardMaterial({color: 0x654321})
-                );
-                fore.position.set(0, 0, -0.1);
-                gunContainer.add(fore);
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.1), woodMat);
+                grip.position.set(0, -0.17, 0.1);
+                gunContainer.add(grip);
+
+                const pump = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.18), darkMat);
+                pump.position.set(0.02, 0.08, 0.08);
+                gunContainer.add(pump);
+
+                const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.04), darkMat);
+                trigger.position.set(0, 0.02, 0.18);
+                gunContainer.add(trigger);
             }
 
-            gunContainer.position.set(0.3, -0.3, -0.5);
+            gunContainer.position.set(0.32, -0.28, -0.5);
             gunGroup.add(gunContainer);
             currentGunModel = gunContainer;
         }
