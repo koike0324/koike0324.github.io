@@ -26,8 +26,22 @@
 
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
-            border: 2px solid #fff; border-radius: 50%;
-            transform: translate(-50%, -50%); mix-blend-mode: difference;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: "";
+            position: absolute;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 6px rgba(255,255,255,0.9);
+        }
+        #crosshair::before {
+            width: 2px; height: 18px;
+        }
+        #crosshair::after {
+            width: 18px; height: 2px;
         }
 
         .btn {
@@ -173,7 +187,7 @@
         }
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.background = new THREE.Color(0x87CEEB);
         scene.fog = new THREE.Fog(0x87CEEB, 15, 100);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -185,7 +199,6 @@
         const light = new THREE.HemisphereLight(0xffffff, 0x80bb88, 2);
         scene.add(light);
 
-        // Grass field
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(200, 200),
             new THREE.MeshStandardMaterial({
@@ -208,16 +221,15 @@
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
-        // Add trees and bushes for scenery
         function addTree(x, z) {
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 3, 8), new THREE.MeshStandardMaterial({color: 0x8B4513}));
             trunk.position.set(x, 1.5, z);
             scene.add(trunk);
-            
+
             const foliage = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), new THREE.MeshStandardMaterial({color: 0x228b22}));
             foliage.position.set(x, 4, z);
             scene.add(foliage);
-            
+
             colliders.push({minX: x-0.8, maxX: x+0.8, minZ: z-0.8, maxZ: z+0.8, width: 1.6, depth: 1.6, height: 3});
         }
 
@@ -267,7 +279,6 @@
         addBox(35, -20, 4, 6, 4, damagedWallMat);
         addBox(-10, -60, 8, 3, 8, metalMat);
 
-        // Add trees around the map
         addTree(-40, 0);
         addTree(40, 0);
         addTree(-45, -30);
@@ -353,32 +364,10 @@
             targets.push(t);
         }
 
-        // Weapon system with realistic details
         const weapons = {
-            pistol: { 
-                maxAmmo: 15, 
-                reloadTime: 0.85, 
-                damage: 1, 
-                fireRate: 0.06,  // 連射可能
-                spreadAngle: 0.02,
-                isAutomatic: true
-            },
-            rifle: { 
-                maxAmmo: 30, 
-                reloadTime: 1.2, 
-                damage: 2, 
-                fireRate: 0.08,  // 連射可能
-                spreadAngle: 0.01,
-                isAutomatic: true
-            },
-            shotgun: { 
-                maxAmmo: 8, 
-                reloadTime: 1.5, 
-                damage: 3, 
-                fireRate: 0.6,  // ショットガンは単発
-                spreadAngle: 0.1,
-                isAutomatic: false
-            }
+            pistol: { maxAmmo: 15, reloadTime: 0.85, damage: 1, fireRate: 0.06, spreadAngle: 0.02, isAutomatic: true },
+            rifle: { maxAmmo: 30, reloadTime: 1.2, damage: 2, fireRate: 0.08, spreadAngle: 0.01, isAutomatic: true },
+            shotgun: { maxAmmo: 8, reloadTime: 1.5, damage: 3, fireRate: 0.6, spreadAngle: 0.1, isAutomatic: false }
         };
 
         let currentWeapon = 'pistol';
@@ -391,12 +380,11 @@
         let currentGunModel;
 
         function createGunModel(type) {
-            if(currentGunModel) gunGroup.remove(currentGunModel);
-            
+            if (currentGunModel) gunGroup.remove(currentGunModel);
+
             const gunContainer = new THREE.Group();
-            
-            if(type === 'pistol') {
-                // ピストル: コンパクトな形状
+
+            if (type === 'pistol') {
                 const slide = new THREE.Mesh(
                     new THREE.BoxGeometry(0.06, 0.08, 0.35),
                     new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.9, roughness: 0.3})
@@ -408,19 +396,16 @@
                     new THREE.BoxGeometry(0.08, 0.15, 0.08),
                     new THREE.MeshStandardMaterial({color: 0x4a3728, roughness: 0.8})
                 );
-                grip.position.z = 0.05;
-                grip.position.y = -0.02;
+                grip.position.set(0, -0.05, 0.08);
                 gunContainer.add(grip);
 
                 const trigger = new THREE.Mesh(
                     new THREE.BoxGeometry(0.02, 0.03, 0.02),
                     new THREE.MeshStandardMaterial({color: 0x0a0a0a})
                 );
-                trigger.position.set(0, 0.03, 0.02);
+                trigger.position.set(0, 0.02, 0.02);
                 gunContainer.add(trigger);
-
-            } else if(type === 'rifle') {
-                // ライフル: 長身でスコープ付き
+            } else if (type === 'rifle') {
                 const barrel = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.03, 0.035, 0.7, 12),
                     new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.85, roughness: 0.35})
@@ -457,9 +442,7 @@
                 );
                 trigger.position.set(0, 0.05, 0.08);
                 gunContainer.add(trigger);
-
-            } else if(type === 'shotgun') {
-                // ショットガン: 太い砲身と幅広い形状
+            } else if (type === 'shotgun') {
                 const barrel = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.055, 0.06, 0.5, 16),
                     new THREE.MeshStandardMaterial({color: 0x0a0a0a, metalness: 0.9, roughness: 0.4})
@@ -489,7 +472,7 @@
                 fore.position.set(0, 0, -0.1);
                 gunContainer.add(fore);
             }
-            
+
             gunContainer.position.set(0.3, -0.3, -0.5);
             gunGroup.add(gunContainer);
             currentGunModel = gunContainer;
@@ -566,18 +549,18 @@
         const keys = {};
         window.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
-            if(e.key === ' ') {
+            if (e.key === ' ') {
                 e.preventDefault();
-                if(isGrounded) {
+                if (isGrounded) {
                     velocityY = 0.36;
                     isGrounded = false;
                 }
             }
-            if(e.key.toLowerCase() === 'r') {
+            if (e.key.toLowerCase() === 'r') {
                 e.preventDefault();
                 startReload();
             }
-            if(e.key.toLowerCase() === 'e') {
+            if (e.key.toLowerCase() === 'e') {
                 e.preventDefault();
                 swapWeapon();
             }
@@ -587,13 +570,13 @@
         });
 
         renderer.domElement.addEventListener('click', () => {
-            if(!isMobile && document.body.requestPointerLock) {
+            if (!isMobile && document.body.requestPointerLock) {
                 document.body.requestPointerLock();
             }
         });
 
         document.addEventListener('mousemove', e => {
-            if(document.pointerLockElement === document.body) {
+            if (document.pointerLockElement === document.body) {
                 yaw -= e.movementX * 0.005;
                 pitch -= e.movementY * 0.005;
                 pitch = Math.max(-1.45, Math.min(1.45, pitch));
@@ -601,22 +584,18 @@
         });
 
         renderer.domElement.addEventListener('mousedown', () => {
-            if(!isMobile) isFiring = true;
+            if (!isMobile) isFiring = true;
         });
         renderer.domElement.addEventListener('mouseup', () => {
             isFiring = false;
         });
 
-        const touchState = {
-            lookTouchId: null,
-            lookStartX: null,
-            lookStartY: null
-        };
+        const touchState = { lookTouchId: null, lookStartX: null, lookStartY: null };
 
         window.addEventListener('touchstart', e => {
-            for(const touch of e.touches) {
+            for (const touch of e.touches) {
                 const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
-                if(touch.clientX > triggerPoint && touchState.lookTouchId === null) {
+                if (touch.clientX > triggerPoint && touchState.lookTouchId === null) {
                     touchState.lookTouchId = touch.identifier;
                     touchState.lookStartX = touch.clientX;
                     touchState.lookStartY = touch.clientY;
@@ -626,8 +605,8 @@
         });
 
         window.addEventListener('touchmove', e => {
-            for(const touch of e.touches) {
-                if(touch.identifier === touchState.lookTouchId) {
+            for (const touch of e.touches) {
+                if (touch.identifier === touchState.lookTouchId) {
                     yaw -= (touch.clientX - touchState.lookStartX) * 0.0055;
                     pitch -= (touch.clientY - touchState.lookStartY) * 0.0055;
                     pitch = Math.max(-1.45, Math.min(1.45, pitch));
@@ -639,8 +618,8 @@
         });
 
         window.addEventListener('touchend', e => {
-            for(const touch of e.changedTouches) {
-                if(touch.identifier === touchState.lookTouchId) {
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.lookTouchId) {
                     touchState.lookTouchId = null;
                     break;
                 }
@@ -652,32 +631,32 @@
         let joyTouchId = null;
 
         joy.addEventListener('touchstart', e => {
-            if(joyTouchId === null && e.touches.length > 0) {
+            if (joyTouchId === null && e.touches.length > 0) {
                 joyTouchId = e.touches[0].identifier;
             }
         });
 
         joy.addEventListener('touchmove', e => {
             e.preventDefault();
-            for(const touch of e.touches) {
-                if(touch.identifier === joyTouchId) {
+            for (const touch of e.touches) {
+                if (touch.identifier === joyTouchId) {
                     const r = joy.getBoundingClientRect();
-                    const dx = touch.clientX - (r.left + r.width/2);
-                    const dy = touch.clientY - (r.top + r.height/2);
-                    const dist = Math.sqrt(dx*dx+dy*dy);
+                    const dx = touch.clientX - (r.left + r.width / 2);
+                    const dy = touch.clientY - (r.top + r.height / 2);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     const d = Math.min(dist, 50);
                     const a = dist > 0 ? Math.atan2(dy, dx) : 0;
-                    knob.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
-                    moveR = (d/50) * Math.cos(a);
-                    moveF = -(d/50) * Math.sin(a);
+                    knob.style.transform = `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px)`;
+                    moveR = (d / 50) * Math.cos(a);
+                    moveF = -(d / 50) * Math.sin(a);
                     break;
                 }
             }
         });
 
         joy.addEventListener('touchend', e => {
-            for(const touch of e.changedTouches) {
-                if(touch.identifier === joyTouchId) {
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === joyTouchId) {
                     moveF = 0;
                     moveR = 0;
                     knob.style.transform = 'translate(0,0)';
@@ -692,46 +671,46 @@
 
         function shoot() {
             const weapon = weapons[currentWeapon];
-            if(ammo <= 0 || isReloading) return;
+            if (ammo <= 0 || isReloading) return;
             const now = Date.now() / 1000;
-            if(now - lastShotTime < weapon.fireRate) return;
+            if (now - lastShotTime < weapon.fireRate) return;
 
             lastShotTime = now;
             ammo--;
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapon.maxAmmo}`;
             gunGroup.position.z += 0.22;
 
-            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
             const hits = ray.intersectObjects(targets);
-            if(hits.length > 0) {
+            if (hits.length > 0) {
                 const o = hits[0].object;
-                o.scale.set(0,0,0);
+                o.scale.set(0, 0, 0);
                 setTimeout(() => {
-                    o.scale.set(1,1,1);
+                    o.scale.set(1, 1, 1);
                     let newX, newZ, valid;
                     do {
                         valid = true;
                         newX = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
                         newZ = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
-                        for(const c of colliders) {
-                            if(newX > c.minX - 2 && newX < c.maxX + 2 && newZ > c.minZ - 2 && newZ < c.maxZ + 2) {
+                        for (const c of colliders) {
+                            if (newX > c.minX - 2 && newX < c.maxX + 2 && newZ > c.minZ - 2 && newZ < c.maxZ + 2) {
                                 valid = false;
                                 break;
                             }
                         }
-                    } while(!valid);
-                    o.position.set(newX, 2+Math.random()*4, newZ);
+                    } while (!valid);
+                    o.position.set(newX, 2 + Math.random() * 4, newZ);
                 }, 2000);
             }
 
-            for(const dummy of dummies) {
-                if(!dummy.isAlive) continue;
+            for (const dummy of dummies) {
+                if (!dummy.isAlive) continue;
                 const allMeshes = [dummy.body, dummy.leftArm, dummy.rightArm, dummy.leftLeg, dummy.rightLeg];
                 const dummyHits = ray.intersectObjects(allMeshes);
-                if(dummyHits.length > 0) {
+                if (dummyHits.length > 0) {
                     dummy.health -= weapon.damage;
-                    if(dummy.health <= 0) {
+                    if (dummy.health <= 0) {
                         dummy.isAlive = false;
                         dummy.group.scale.set(0, 0, 0);
                     }
@@ -750,7 +729,7 @@
             reloadUI.style.display = 'none';
             gunGroup.position.y = 0;
             gunGroup.position.z = 0;
-            
+
             document.getElementById('weapon-display').innerText = currentWeapon.toUpperCase();
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapons[currentWeapon].maxAmmo}`;
             createGunModel(currentWeapon);
@@ -758,7 +737,7 @@
 
         function startReload() {
             const weapon = weapons[currentWeapon];
-            if(!isReloading && ammo < weapon.maxAmmo) {
+            if (!isReloading && ammo < weapon.maxAmmo) {
                 isReloading = true;
                 isFiring = false;
                 reloadTimer = 0;
@@ -776,7 +755,7 @@
         });
         document.getElementById('jump-button').addEventListener('touchstart', e => {
             e.preventDefault();
-            if(isGrounded) {
+            if (isGrounded) {
                 velocityY = 0.36;
                 isGrounded = false;
             }
@@ -791,14 +770,14 @@
         });
 
         function checkCollision(x, z, radius) {
-            for(const c of colliders) {
+            for (const c of colliders) {
                 const closestX = Math.max(c.minX, Math.min(x, c.maxX));
                 const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
                 const distX = x - closestX;
                 const distZ = z - closestZ;
-                const distSq = distX*distX + distZ*distZ;
+                const distSq = distX * distX + distZ * distZ;
 
-                if(distSq < radius*radius) {
+                if (distSq < radius * radius) {
                     return true;
                 }
             }
@@ -806,11 +785,11 @@
         }
 
         function updateDummies(delta) {
-            for(const dummy of dummies) {
-                if(!dummy.isAlive) continue;
+            for (const dummy of dummies) {
+                if (!dummy.isAlive) continue;
 
                 dummy.wanderTimer += delta;
-                if(dummy.wanderTimer > dummy.wanderInterval) {
+                if (dummy.wanderTimer > dummy.wanderInterval) {
                     dummy.moveDir = Math.random() * Math.PI * 2;
                     dummy.wanderInterval = 2 + Math.random() * 4;
                     dummy.wanderTimer = 0;
@@ -823,7 +802,7 @@
                 newX = Math.max(DUMMY_BOUNDS.minX, Math.min(newX, DUMMY_BOUNDS.maxX));
                 newZ = Math.max(DUMMY_BOUNDS.minZ, Math.min(newZ, DUMMY_BOUNDS.maxZ));
 
-                if(!checkCollision(newX, newZ, 0.35)) {
+                if (!checkCollision(newX, newZ, 0.35)) {
                     dummy.group.position.x = newX;
                     dummy.group.position.z = newZ;
                     dummy.group.rotation.y = dummy.moveDir;
@@ -845,19 +824,19 @@
             const delta = clock.getDelta();
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            if(!isMobile) {
+            if (!isMobile) {
                 moveF = 0;
                 moveR = 0;
-                if(keys['w']) moveF += 1;
-                if(keys['s']) moveF -= 1;
-                if(keys['a']) moveR -= 1;
-                if(keys['d']) moveR += 1;
+                if (keys['w']) moveF += 1;
+                if (keys['s']) moveF -= 1;
+                if (keys['a']) moveR -= 1;
+                if (keys['d']) moveR += 1;
             }
 
-            const fw = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+            const fw = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
             fw.y = 0;
             fw.normalize();
-            const rt = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), fw).negate();
+            const rt = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), fw).negate();
 
             const moveVec = new THREE.Vector3(
                 fw.x * moveF + rt.x * moveR,
@@ -868,33 +847,32 @@
             const nX = playerPos.x + moveVec.x;
             const nZ = playerPos.z + moveVec.z;
 
-            if(!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
+            if (!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
                 playerPos.x = nX;
             }
-            if(!checkCollision(playerPos.x, nZ, PLAYER_RADIUS)) {
+            if (!checkCollision(playerPos.x, nZ, PLAYER_RADIUS)) {
                 playerPos.z = nZ;
             }
 
             velocityY -= 0.019;
             playerPos.y += velocityY;
-            if(playerPos.y <= 1.6) {
+            if (playerPos.y <= 1.6) {
                 playerPos.y = 1.6;
                 velocityY = 0;
                 isGrounded = true;
             }
 
-            // 連射処理
-            if(isFiring && !isReloading) {
+            if (isFiring && !isReloading) {
                 shoot();
             }
 
             const weapon = weapons[currentWeapon];
-            if(isReloading) {
+            if (isReloading) {
                 reloadTimer += delta;
                 const p = Math.min(reloadTimer / weapon.reloadTime, 1);
                 reloadBar.style.width = (p * 100) + '%';
                 gunGroup.position.y = Math.sin(p * Math.PI) * -0.65;
-                if(reloadTimer >= weapon.reloadTime) {
+                if (reloadTimer >= weapon.reloadTime) {
                     isReloading = false;
                     ammo = weapon.maxAmmo;
                     document.getElementById('ammo-display').innerText = `${ammo} / ${weapon.maxAmmo}`;
@@ -902,13 +880,12 @@
                     gunGroup.position.y = 0;
                 }
             } else {
-                gunGroup.position.y = Math.sin(Date.now()*0.0025)*0.015;
+                gunGroup.position.y = Math.sin(Date.now() * 0.0025) * 0.015;
                 gunGroup.position.z += (0 - gunGroup.position.z) * 0.18;
             }
 
             updateDummies(delta);
             updateMinimap();
-
             camera.position.copy(playerPos);
             renderer.render(scene, camera);
         }
