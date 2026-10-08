@@ -353,36 +353,146 @@
             targets.push(t);
         }
 
-        // Weapon system
+        // Weapon system with realistic details
         const weapons = {
-            pistol: { maxAmmo: 15, reloadTime: 0.85, damage: 1, fireRate: 0.1, spreadAngle: 0.02 },
-            rifle: { maxAmmo: 30, reloadTime: 1.2, damage: 2, fireRate: 0.08, spreadAngle: 0.01 },
-            shotgun: { maxAmmo: 8, reloadTime: 1.5, damage: 3, fireRate: 0.6, spreadAngle: 0.1 }
+            pistol: { 
+                maxAmmo: 15, 
+                reloadTime: 0.85, 
+                damage: 1, 
+                fireRate: 0.06,  // 連射可能
+                spreadAngle: 0.02,
+                isAutomatic: true
+            },
+            rifle: { 
+                maxAmmo: 30, 
+                reloadTime: 1.2, 
+                damage: 2, 
+                fireRate: 0.08,  // 連射可能
+                spreadAngle: 0.01,
+                isAutomatic: true
+            },
+            shotgun: { 
+                maxAmmo: 8, 
+                reloadTime: 1.5, 
+                damage: 3, 
+                fireRate: 0.6,  // ショットガンは単発
+                spreadAngle: 0.1,
+                isAutomatic: false
+            }
         };
 
         let currentWeapon = 'pistol';
         let ammo = weapons[currentWeapon].maxAmmo;
         let isReloading = false;
         let reloadTimer = 0;
+        let isFiring = false;
 
         const gunGroup = new THREE.Group();
         let currentGunModel;
 
         function createGunModel(type) {
             if(currentGunModel) gunGroup.remove(currentGunModel);
-            let gun;
+            
+            const gunContainer = new THREE.Group();
             
             if(type === 'pistol') {
-                gun = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.4), new THREE.MeshStandardMaterial({color: 0x222222}));
+                // ピストル: コンパクトな形状
+                const slide = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.06, 0.08, 0.35),
+                    new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.9, roughness: 0.3})
+                );
+                slide.position.z = -0.05;
+                gunContainer.add(slide);
+
+                const grip = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 0.15, 0.08),
+                    new THREE.MeshStandardMaterial({color: 0x4a3728, roughness: 0.8})
+                );
+                grip.position.z = 0.05;
+                grip.position.y = -0.02;
+                gunContainer.add(grip);
+
+                const trigger = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.02, 0.03, 0.02),
+                    new THREE.MeshStandardMaterial({color: 0x0a0a0a})
+                );
+                trigger.position.set(0, 0.03, 0.02);
+                gunContainer.add(trigger);
+
             } else if(type === 'rifle') {
-                gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.8), new THREE.MeshStandardMaterial({color: 0x1a1a1a}));
+                // ライフル: 長身でスコープ付き
+                const barrel = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.03, 0.035, 0.7, 12),
+                    new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.85, roughness: 0.35})
+                );
+                barrel.rotation.z = Math.PI / 2;
+                barrel.position.z = -0.2;
+                gunContainer.add(barrel);
+
+                const stock = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 0.06, 0.25),
+                    new THREE.MeshStandardMaterial({color: 0x654321, roughness: 0.9})
+                );
+                stock.position.set(0, -0.02, 0.15);
+                gunContainer.add(stock);
+
+                const scope = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.04, 0.04, 0.12, 16),
+                    new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.95})
+                );
+                scope.rotation.z = Math.PI / 2;
+                scope.position.set(0.02, 0.06, 0.05);
+                gunContainer.add(scope);
+
+                const scopeGlass = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.035, 8, 8),
+                    new THREE.MeshStandardMaterial({color: 0x4488ff, metalness: 1.0, roughness: 0.0, emissive: 0x2244aa})
+                );
+                scopeGlass.position.set(-0.05, 0.06, 0.05);
+                gunContainer.add(scopeGlass);
+
+                const trigger = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.02, 0.04, 0.02),
+                    new THREE.MeshStandardMaterial({color: 0x0a0a0a})
+                );
+                trigger.position.set(0, 0.05, 0.08);
+                gunContainer.add(trigger);
+
             } else if(type === 'shotgun') {
-                gun = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.18, 0.6), new THREE.MeshStandardMaterial({color: 0x333333}));
+                // ショットガン: 太い砲身と幅広い形状
+                const barrel = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.055, 0.06, 0.5, 16),
+                    new THREE.MeshStandardMaterial({color: 0x0a0a0a, metalness: 0.9, roughness: 0.4})
+                );
+                barrel.rotation.z = Math.PI / 2;
+                barrel.position.z = -0.1;
+                gunContainer.add(barrel);
+
+                const pump = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.07, 0.08, 0.18),
+                    new THREE.MeshStandardMaterial({color: 0x1a1a1a})
+                );
+                pump.position.set(0, 0.02, 0.05);
+                gunContainer.add(pump);
+
+                const stock = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.09, 0.07, 0.2),
+                    new THREE.MeshStandardMaterial({color: 0x8B7355, roughness: 0.9})
+                );
+                stock.position.set(0, -0.02, 0.2);
+                gunContainer.add(stock);
+
+                const fore = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 0.06, 0.15),
+                    new THREE.MeshStandardMaterial({color: 0x654321})
+                );
+                fore.position.set(0, 0, -0.1);
+                gunContainer.add(fore);
             }
             
-            gun.position.set(0.3, -0.3, -0.5);
-            gunGroup.add(gun);
-            currentGunModel = gun;
+            gunContainer.position.set(0.3, -0.3, -0.5);
+            gunGroup.add(gunContainer);
+            currentGunModel = gunContainer;
         }
 
         createGunModel('pistol');
@@ -490,8 +600,11 @@
             }
         });
 
-        renderer.domElement.addEventListener('click', () => {
-            if(!isMobile) shoot();
+        renderer.domElement.addEventListener('mousedown', () => {
+            if(!isMobile) isFiring = true;
+        });
+        renderer.domElement.addEventListener('mouseup', () => {
+            isFiring = false;
         });
 
         const touchState = {
@@ -633,6 +746,7 @@
             currentWeapon = weaponList[(currentIndex + 1) % weaponList.length];
             ammo = weapons[currentWeapon].maxAmmo;
             isReloading = false;
+            isFiring = false;
             reloadUI.style.display = 'none';
             gunGroup.position.y = 0;
             gunGroup.position.z = 0;
@@ -646,6 +760,7 @@
             const weapon = weapons[currentWeapon];
             if(!isReloading && ammo < weapon.maxAmmo) {
                 isReloading = true;
+                isFiring = false;
                 reloadTimer = 0;
                 reloadUI.style.display = 'block';
             }
@@ -653,7 +768,11 @@
 
         document.getElementById('fire-button').addEventListener('touchstart', e => {
             e.preventDefault();
-            shoot();
+            isFiring = true;
+        });
+        document.getElementById('fire-button').addEventListener('touchend', e => {
+            e.preventDefault();
+            isFiring = false;
         });
         document.getElementById('jump-button').addEventListener('touchstart', e => {
             e.preventDefault();
@@ -762,6 +881,11 @@
                 playerPos.y = 1.6;
                 velocityY = 0;
                 isGrounded = true;
+            }
+
+            // 連射処理
+            if(isFiring && !isReloading) {
+                shoot();
             }
 
             const weapon = weapons[currentWeapon];
