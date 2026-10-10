@@ -86,6 +86,24 @@
         #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
         #weapon-display { position: absolute; top: 60px; left: 20px; font-size: 16px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
 
+        #damage-indicators {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .damage-number {
+            position: absolute;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff0000;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+
         #controls-guide {
             position: absolute; bottom: 20px; right: 20px; color: #000; font-size: 12px;
             background: rgba(255,255,255,0.7); padding: 10px 15px; border-radius: 8px;
@@ -148,6 +166,8 @@
         <div id="minimap-container">
             <canvas id="minimap"></canvas>
         </div>
+
+        <div id="damage-indicators"></div>
 
         <div id="joystick-container"><div id="joystick-knob"></div></div>
         <div id="fire-button" class="btn">FIRE</div>
@@ -328,7 +348,11 @@
                 wanderInterval: 3 + Math.random() * 3,
                 velocity: new THREE.Vector3(0, 0, 0),
                 health: 3,
-                isAlive: true
+                maxHealth: 3,
+                isAlive: true,
+                hitFlashTimer: 0,
+                hitFlashDuration: 0.15,
+                originalBodyColor: 0x4488ff
             };
         }
 
@@ -479,6 +503,7 @@
 
         const reloadUI = document.getElementById('reload-container');
         const reloadBar = document.getElementById('reload-bar-fill');
+        const damageIndicatorsContainer = document.getElementById('damage-indicators');
 
         const minimapCanvas = document.getElementById('minimap');
         const minimapCtx = minimapCanvas.getContext('2d');
@@ -658,6 +683,35 @@
         const ray = new THREE.Raycaster();
         let lastShotTime = 0;
 
+        function showDamageIndicator(damage, screenX, screenY) {
+            const damageEl = document.createElement('div');
+            damageEl.className = 'damage-number';
+            damageEl.innerText = damage;
+            damageEl.style.left = screenX + 'px';
+            damageEl.style.top = screenY + 'px';
+            damageIndicatorsContainer.appendChild(damageEl);
+
+            let opacity = 1;
+            let offsetY = 0;
+            const startTime = Date.now();
+
+            function animate() {
+                const elapsed = (Date.now() - startTime) / 1000;
+                if (elapsed > 1.2) {
+                    damageEl.remove();
+                    return;
+                }
+
+                offsetY = elapsed * 40;
+                opacity = Math.max(0, 1 - (elapsed / 1.2));
+                damageEl.style.opacity = opacity;
+                damageEl.style.transform = `translateY(-${offsetY}px)`;
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
         function shoot() {
             const weapon = weapons[currentWeapon];
             if (ammo <= 0 || isReloading) return;
@@ -675,6 +729,7 @@
             if (hits.length > 0) {
                 const o = hits[0].object;
                 o.scale.set(0, 0, 0);
+                showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
                 setTimeout(() => {
                     o.scale.set(1, 1, 1);
                     let newX, newZ, valid;
@@ -699,6 +754,11 @@
                 const dummyHits = ray.intersectObjects(allMeshes);
                 if (dummyHits.length > 0) {
                     dummy.health -= weapon.damage;
+                    dummy.hitFlashTimer = dummy.hitFlashDuration;
+
+                    // スクリーンの中央にダメージ表記を表示
+                    showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
+
                     if (dummy.health <= 0) {
                         dummy.isAlive = false;
                         dummy.group.scale.set(0, 0, 0);
@@ -804,6 +864,47 @@
                 dummy.rightArm.rotation.z = Math.sin(walkCycle + Math.PI) * 0.3;
                 dummy.leftLeg.rotation.x = Math.sin(walkCycle) * 0.2;
                 dummy.rightLeg.rotation.x = Math.sin(walkCycle + Math.PI) * 0.2;
+
+                // ダメージフラッシュ更新
+                if (dummy.hitFlashTimer > 0) {
+                    dummy.hitFlashTimer -= delta;
+                    const flashIntensity = dummy.hitFlashTimer / dummy.hitFlashDuration;
+                    dummy.body.material.color.setHex(0xFF4444);
+                    dummy.body.material.emissive.setHex(0xFF0000);
+                    dummy.body.material.emissiveIntensity = flashIntensity * 0.8;
+                } else {
+                    dummy.body.material.color.setHex(dummy.originalBodyColor);
+                    dummy.body.material.emissive.setHex(0x000000);
+                    dummy.body.material.emissiveIntensity = 0;
+                }
+
+                // ヘルスバー表示（簡易版）
+                if (!dummy.healthBarCanvas) {
+                    dummy.healthBarCanvas = document.createElement('canvas');
+                    dummy.healthBarCanvas.width = 64;
+                    dummy.healthBarCanvas.height = 8;
+                    const ctx = dummy.healthBarCanvas.getContext('2d');
+                    ctx.fillStyle = '#222222';
+                    ctx.fillRect(0, 0, 64, 8);
+                    
+                    dummy.healthBarTexture = new THREE.CanvasTexture(dummy.healthBarCanvas);
+                    dummy.healthBarMaterial = new THREE.MeshBasicMaterial({ map: dummy.healthBarTexture });
+                    dummy.healthBar = new THREE.Mesh(
+                        new THREE.PlaneGeometry(0.8, 0.1),
+                        dummy.healthBarMaterial
+                    );
+                    dummy.healthBar.position.y = 2.5;
+                    dummy.group.add(dummy.healthBar);
+                }
+
+                // ヘルスバー更新
+                const healthPercent = dummy.health / dummy.maxHealth;
+                const ctx = dummy.healthBarCanvas.getContext('2d');
+                ctx.fillStyle = '#222222';
+                ctx.fillRect(0, 0, 64, 8);
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                ctx.fillRect(0, 0, 64 * healthPercent, 8);
+                dummy.healthBarTexture.needsUpdate = true;
             }
         }
 
