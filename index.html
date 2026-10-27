@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ultimate Mobile FPS Arena</title>
     <style>
-        body { margin: 0; overflow: hidden; touch-action: none; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+        body { position: fixed; inset: 0; touch-action: none; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #game-canvas { position: fixed; inset: 0; z-index: 0; display: block; }
+        #ui-layer { position: fixed; z-index: 10; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
         #minimap-container {
             position: absolute;
@@ -511,7 +513,8 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        let yaw = 0, pitch = 0, velocityY = 0, isGrounded = true;
+        // 開始直後に地面と建物が見えるよう、視点を少しだけ下向きにする
+        let yaw = 0, pitch = -0.12, velocityY = 0, isGrounded = true;
         let moveF = 0, moveR = 0;
         const playerPos = new THREE.Vector3(0, 1.6, 10);
         const MOVE_SPEED = 0.15;
