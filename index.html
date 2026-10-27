@@ -194,10 +194,13 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // iPadOS Safari は Mac のような userAgent を返す場合があるため、タッチ対応も判定する
+        // Edge / Safari の iPad は userAgent がPC扱いになることがあるため、タッチ対応も判定する
         const isIPadOS = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIPadOS;
-        const isTablet = (/iPad|Android/i.test(navigator.userAgent) || isIPadOS) && window.innerWidth > 600;
+        const hasTouchInput = (navigator.maxTouchPoints || 0) > 0 ||
+            ('ontouchstart' in window) ||
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIPadOS || hasTouchInput;
+        const isTablet = window.innerWidth > 600 && (isIPadOS || /iPad|Android/i.test(navigator.userAgent) || hasTouchInput);
 
         if(isMobile) {
             document.getElementById('joystick-container').classList.add('mobile-visible');
