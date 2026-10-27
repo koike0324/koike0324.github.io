@@ -240,6 +240,7 @@
             new THREE.MeshStandardMaterial({
                 color: 0x2d8a3d,
                 roughness: 0.8,
+                side: THREE.DoubleSide,
                 map: new THREE.CanvasTexture((function() {
                     const canvas = document.createElement('canvas');
                     canvas.width = canvas.height = 64;
@@ -513,8 +514,8 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // 開始直後に地面と建物が見えるよう、視点を少しだけ下向きにする
-        let yaw = 0, pitch = -0.12, velocityY = 0, isGrounded = true;
+        // iPadでも開始時に地面と建物が確実に視界へ入るよう、初期視点を下向きにする
+        let yaw = 0, pitch = -0.35, velocityY = 0, isGrounded = true;
         let moveF = 0, moveR = 0;
         const playerPos = new THREE.Vector3(0, 1.6, 10);
         const MOVE_SPEED = 0.15;
