@@ -627,81 +627,71 @@
             isFiring = false;
         });
 
-        const touchState = { lookTouchId: null, lookStartX: null, lookStartY: null };
-
-        window.addEventListener('touchstart', e => {
-            for (const touch of e.touches) {
-                const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
-                if (touch.clientX > triggerPoint && touchState.lookTouchId === null) {
-                    touchState.lookTouchId = touch.identifier;
-                    touchState.lookStartX = touch.clientX;
-                    touchState.lookStartY = touch.clientY;
-                    break;
-                }
+        // Pointer Events でタッチ・マウスを統一し、iPad Edge/Safari の入力差を減らす
+        const lookState = { pointerId: null, x: 0, y: 0 };
+        window.addEventListener('pointerdown', e => {
+            if (e.pointerType === 'mouse' || e.target.closest('.btn, #joystick-container')) return;
+            const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
+            if (e.clientX > triggerPoint && lookState.pointerId === null) {
+                lookState.pointerId = e.pointerId;
+                lookState.x = e.clientX;
+                lookState.y = e.clientY;
             }
+        }, { passive: true });
+
+        window.addEventListener('pointermove', e => {
+            if (e.pointerId !== lookState.pointerId) return;
+            yaw -= (e.clientX - lookState.x) * 0.0055;
+            pitch -= (e.clientY - lookState.y) * 0.0055;
+            pitch = Math.max(-1.45, Math.min(1.45, pitch));
+            lookState.x = e.clientX;
+            lookState.y = e.clientY;
         });
 
-        window.addEventListener('touchmove', e => {
-            for (const touch of e.touches) {
-                if (touch.identifier === touchState.lookTouchId) {
-                    yaw -= (touch.clientX - touchState.lookStartX) * 0.0055;
-                    pitch -= (touch.clientY - touchState.lookStartY) * 0.0055;
-                    pitch = Math.max(-1.45, Math.min(1.45, pitch));
-                    touchState.lookStartX = touch.clientX;
-                    touchState.lookStartY = touch.clientY;
-                    break;
-                }
-            }
-        });
-
-        window.addEventListener('touchend', e => {
-            for (const touch of e.changedTouches) {
-                if (touch.identifier === touchState.lookTouchId) {
-                    touchState.lookTouchId = null;
-                    break;
-                }
-            }
-        });
+        const releaseLook = e => {
+            if (e.pointerId === lookState.pointerId) lookState.pointerId = null;
+        };
+        window.addEventListener('pointerup', releaseLook);
+        window.addEventListener('pointercancel', releaseLook);
 
         const joy = document.getElementById('joystick-container');
         const knob = document.getElementById('joystick-knob');
-        let joyTouchId = null;
+        let joyPointerId = null;
 
-        joy.addEventListener('touchstart', e => {
-            if (joyTouchId === null && e.touches.length > 0) {
-                joyTouchId = e.touches[0].identifier;
-            }
-        });
+        function updateJoystick(clientX, clientY) {
+            const r = joy.getBoundingClientRect();
+            const dx = clientX - (r.left + r.width / 2);
+            const dy = clientY - (r.top + r.height / 2);
+            const dist = Math.hypot(dx, dy);
+            const d = Math.min(dist, 50);
+            const a = dist > 0 ? Math.atan2(dy, dx) : 0;
+            knob.style.transform = `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px)`;
+            moveR = (d / 50) * Math.cos(a);
+            moveF = -(d / 50) * Math.sin(a);
+        }
 
-        joy.addEventListener('touchmove', e => {
+        joy.addEventListener('pointerdown', e => {
             e.preventDefault();
-            for (const touch of e.touches) {
-                if (touch.identifier === joyTouchId) {
-                    const r = joy.getBoundingClientRect();
-                    const dx = touch.clientX - (r.left + r.width / 2);
-                    const dy = touch.clientY - (r.top + r.height / 2);
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const d = Math.min(dist, 50);
-                    const a = dist > 0 ? Math.atan2(dy, dx) : 0;
-                    knob.style.transform = `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px)`;
-                    moveR = (d / 50) * Math.cos(a);
-                    moveF = -(d / 50) * Math.sin(a);
-                    break;
-                }
-            }
+            if (joyPointerId !== null) return;
+            joyPointerId = e.pointerId;
+            joy.setPointerCapture(e.pointerId);
+            updateJoystick(e.clientX, e.clientY);
         });
-
-        joy.addEventListener('touchend', e => {
-            for (const touch of e.changedTouches) {
-                if (touch.identifier === joyTouchId) {
-                    moveF = 0;
-                    moveR = 0;
-                    knob.style.transform = 'translate(0,0)';
-                    joyTouchId = null;
-                    break;
-                }
-            }
+        joy.addEventListener('pointermove', e => {
+            if (e.pointerId !== joyPointerId) return;
+            e.preventDefault();
+            updateJoystick(e.clientX, e.clientY);
         });
+        const releaseJoystick = e => {
+            if (e.pointerId !== joyPointerId) return;
+            moveF = 0;
+            moveR = 0;
+            knob.style.transform = 'translate(0,0)';
+            joyPointerId = null;
+        };
+        joy.addEventListener('pointerup', releaseJoystick);
+        joy.addEventListener('pointercancel', releaseJoystick);
+        joy.addEventListener('lostpointercapture', releaseJoystick);
 
         const ray = new THREE.Raycaster();
         let lastShotTime = 0;
@@ -832,26 +822,29 @@
             }
         }
 
-        document.getElementById('fire-button').addEventListener('touchstart', e => {
+        const fireButton = document.getElementById('fire-button');
+        fireButton.addEventListener('pointerdown', e => {
             e.preventDefault();
             isFiring = true;
+            fireButton.setPointerCapture(e.pointerId);
         });
-        document.getElementById('fire-button').addEventListener('touchend', e => {
-            e.preventDefault();
-            isFiring = false;
-        });
-        document.getElementById('jump-button').addEventListener('touchstart', e => {
+        const stopFiring = () => { isFiring = false; };
+        fireButton.addEventListener('pointerup', stopFiring);
+        fireButton.addEventListener('pointercancel', stopFiring);
+        fireButton.addEventListener('lostpointercapture', stopFiring);
+
+        document.getElementById('jump-button').addEventListener('pointerdown', e => {
             e.preventDefault();
             if (isGrounded) {
                 velocityY = 0.36;
                 isGrounded = false;
             }
         });
-        document.getElementById('weapon-swap-button').addEventListener('touchstart', e => {
+        document.getElementById('weapon-swap-button').addEventListener('pointerdown', e => {
             e.preventDefault();
             swapWeapon();
         });
-        document.getElementById('reload-button').addEventListener('touchstart', e => {
+        document.getElementById('reload-button').addEventListener('pointerdown', e => {
             e.preventDefault();
             startReload();
         });
@@ -883,8 +876,8 @@
                 }
 
                 const moveSpeed = 0.08;
-                let newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed;
-                let newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed;
+                let newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed * delta * 60;
+                let newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed * delta * 60;
 
                 newX = Math.max(DUMMY_BOUNDS.minX, Math.min(newX, DUMMY_BOUNDS.maxX));
                 newZ = Math.max(DUMMY_BOUNDS.minZ, Math.min(newZ, DUMMY_BOUNDS.maxZ));
@@ -949,7 +942,9 @@
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
+            // タブ復帰時の巨大なdeltaで移動や物理が暴れないよう、フレーム時間を制限
+            const delta = Math.min(clock.getDelta(), 0.05);
+            const frameScale = delta * 60;
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
             if (!isMobile) {
@@ -970,7 +965,7 @@
                 fw.x * moveF + rt.x * moveR,
                 0,
                 fw.z * moveF + rt.z * moveR
-            ).multiplyScalar(MOVE_SPEED);
+            ).multiplyScalar(MOVE_SPEED * frameScale);
 
             const nX = playerPos.x + moveVec.x;
             const nZ = playerPos.z + moveVec.z;
@@ -982,8 +977,8 @@
                 playerPos.z = nZ;
             }
 
-            velocityY -= 0.019;
-            playerPos.y += velocityY;
+            velocityY -= 0.019 * frameScale;
+            playerPos.y += velocityY * frameScale;
             if (playerPos.y <= 1.6) {
                 playerPos.y = 1.6;
                 velocityY = 0;
@@ -1009,7 +1004,7 @@
                 }
             } else {
                 gunGroup.position.y = Math.sin(Date.now() * 0.0025) * 0.015;
-                gunGroup.position.z += (0 - gunGroup.position.z) * 0.18;
+                gunGroup.position.z += (0 - gunGroup.position.z) * Math.min(1, 0.18 * frameScale);
             }
 
             updateDummies(delta);
