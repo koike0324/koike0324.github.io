@@ -261,6 +261,7 @@
         function addBox(x, z, w, h, d, mat, isInterior = false) {
             const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             m.position.set(x, h/2, z);
+            m.userData.blocksShots = true;
             scene.add(m);
 
             if(!isInterior) {
@@ -726,13 +727,31 @@
 
             ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            const hits = ray.intersectObjects(targets);
-            if (hits.length > 0) {
-                const o = hits[0].object;
-                o.scale.set(0, 0, 0);
+            // 壁・ターゲット・生存中の敵を同じレイで調べ、最も近い交差だけを処理する
+            const blockers = scene.children.filter(object => object.userData.blocksShots);
+            const targetMeshes = targets.filter(target => target.scale.x !== 0);
+            const dummyMeshes = [];
+            for (const dummy of dummies) {
+                if (!dummy.isAlive) continue;
+                for (const mesh of [dummy.body, dummy.head, dummy.leftArm, dummy.rightArm, dummy.leftLeg, dummy.rightLeg]) {
+                    dummyMeshes.push(mesh);
+                }
+            }
+
+            const candidates = [...blockers, ...targetMeshes, ...dummyMeshes];
+            const hits = ray.intersectObjects(candidates, false);
+            if (hits.length === 0) return;
+
+            const hit = hits[0];
+            // 最初に当たったのが壁・箱なら、後ろの敵やターゲットには命中させない
+            if (hit.object.userData.blocksShots) return;
+
+            if (targets.includes(hit.object)) {
+                const target = hit.object;
+                target.scale.set(0, 0, 0);
                 showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
                 setTimeout(() => {
-                    o.scale.set(1, 1, 1);
+                    target.scale.set(1, 1, 1);
                     let newX, newZ, valid;
                     do {
                         valid = true;
@@ -745,27 +764,24 @@
                             }
                         }
                     } while (!valid);
-                    o.position.set(newX, 2 + Math.random() * 4, newZ);
+                    target.position.set(newX, 2 + Math.random() * 4, newZ);
                 }, 2000);
+                return;
             }
 
-            for (const dummy of dummies) {
-                if (!dummy.isAlive) continue;
-                const allMeshes = [dummy.body, dummy.leftArm, dummy.rightArm, dummy.leftLeg, dummy.rightLeg];
-                const dummyHits = ray.intersectObjects(allMeshes);
-                if (dummyHits.length > 0) {
-                    dummy.health -= weapon.damage;
-                    dummy.hitFlashTimer = dummy.hitFlashDuration;
+            const dummy = dummies.find(item =>
+                item.isAlive &&
+                [item.body, item.head, item.leftArm, item.rightArm, item.leftLeg, item.rightLeg].includes(hit.object)
+            );
+            if (!dummy) return;
 
-                    // スクリーンの中央にダメージ表記を表示
-                    showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
+            dummy.health -= weapon.damage;
+            dummy.hitFlashTimer = dummy.hitFlashDuration;
+            showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
 
-                    if (dummy.health <= 0) {
-                        dummy.isAlive = false;
-                        dummy.group.scale.set(0, 0, 0);
-                    }
-                    return;
-                }
+            if (dummy.health <= 0) {
+                dummy.isAlive = false;
+                dummy.group.scale.set(0, 0, 0);
             }
         }
 
