@@ -273,10 +273,11 @@
         }
 
         function createBuilding(x, z, w, d, h, floors) {
-            addBox(x - w/2, z, 0.5, h, d, wallMat, true);
-            addBox(x + w/2, z, 0.5, h, d, wallMat, true);
-            addBox(x, z - d/2, w, h, 0.5, wallMat, true);
-            addBox(x, z + d/2, w, h, 0.5, wallMat, true);
+            // 建物の外壁はプレイヤーの当たり判定に含める
+            addBox(x - w/2, z, 0.5, h, d, wallMat);
+            addBox(x + w/2, z, 0.5, h, d, wallMat);
+            addBox(x, z - d/2, w, h, 0.5, wallMat);
+            addBox(x, z + d/2, w, h, 0.5, wallMat);
 
             const floorHeight = h / floors;
             for(let i = 0; i <= floors; i++) {
