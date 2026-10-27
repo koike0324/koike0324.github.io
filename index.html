@@ -192,8 +192,10 @@
     <script type="module">
         import * as THREE from 'three';
 
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth > 600;
+        // iPadOS Safari は Mac のような userAgent を返す場合があるため、タッチ対応も判定する
+        const isIPadOS = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIPadOS;
+        const isTablet = (/iPad|Android/i.test(navigator.userAgent) || isIPadOS) && window.innerWidth > 600;
 
         if(isMobile) {
             document.getElementById('joystick-container').classList.add('mobile-visible');
@@ -210,10 +212,22 @@
         scene.background = new THREE.Color(0x87CEEB);
         scene.fog = new THREE.Fog(0x87CEEB, 15, 100);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const getViewportSize = () => {
+            // iPad Safari のアドレスバーや画面回転で変わる表示領域にも追従する
+            const viewport = window.visualViewport;
+            return {
+                width: Math.max(1, Math.round(viewport?.width || document.documentElement.clientWidth || window.innerWidth)),
+                height: Math.max(1, Math.round(viewport?.height || document.documentElement.clientHeight || window.innerHeight))
+            };
+        };
+
+        const initialSize = getViewportSize();
+        const camera = new THREE.PerspectiveCamera(75, initialSize.width / initialSize.height, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.domElement.id = 'game-canvas';
+        renderer.domElement.style.cssText = 'position:fixed;inset:0;display:block;width:100%;height:100%;';
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(initialSize.width, initialSize.height, false);
         document.body.appendChild(renderer.domElement);
 
         const light = new THREE.HemisphereLight(0xffffff, 0x80bb88, 2);
@@ -998,11 +1012,20 @@
         }
         animate();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+        function resizeGame() {
+            const size = getViewportSize();
+            camera.aspect = size.width / size.height;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.setSize(size.width, size.height, false);
+        }
+
+        window.addEventListener('resize', resizeGame);
+        window.addEventListener('orientationchange', () => requestAnimationFrame(resizeGame));
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resizeGame);
+        }
+        resizeGame();
     </script>
 </body>
 </html>
