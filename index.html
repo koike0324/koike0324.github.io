@@ -361,6 +361,7 @@
             return {
                 group: dummyGroup,
                 body: body,
+                head: head,
                 leftArm: leftArm,
                 rightArm: rightArm,
                 leftLeg: leftLeg,
@@ -787,7 +788,10 @@
                 }
             }
 
-            const candidates = [...blockers, ...targetMeshes, ...dummyMeshes];
+            // 念のため未定義・非Meshを除外し、無効な候補で射撃処理が停止しないようにする
+            const candidates = [...blockers, ...targetMeshes, ...dummyMeshes]
+                .filter(object => object && object.isObject3D && typeof object.raycast === 'function');
+            // 敵の各部位は直接Meshを渡して判定する
             const hits = ray.intersectObjects(candidates, false);
             if (hits.length === 0) return;
 
