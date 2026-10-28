@@ -402,13 +402,11 @@
         const targets = [];
         const tGeo = new THREE.IcosahedronGeometry(0.8, 0);
         const tMat = new THREE.MeshStandardMaterial({color: 0xff3300, emissive: 0xff0000, emissiveIntensity: 0.6});
-        for(let i=0; i<8; i++) {
+        for (let i = 0; i < 8; i++) {
             const t = new THREE.Mesh(tGeo, tMat);
-            t.position.set(
-                DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX),
-                2 + Math.random() * 4,
-                DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ)
-            );
+            // 初期配置でも建物や障害物の内部を避ける
+            const pos = findOpenPosition(1);
+            t.position.set(pos.x, 2 + Math.random() * 4, pos.z);
             scene.add(t);
             targets.push(t);
         }
@@ -429,7 +427,20 @@
         let currentGunModel;
 
         function createGunModel(type) {
-            if (currentGunModel) gunGroup.remove(currentGunModel);
+            if (currentGunModel) {
+                // 武器切り替えを繰り返したとき、古いモデルのGPUリソースを残さない
+                currentGunModel.traverse(object => {
+                    if (!object.isMesh) return;
+                    if (object.geometry) object.geometry.dispose();
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => material.dispose());
+                    } else if (object.material) {
+                        object.material.dispose();
+                    }
+                });
+                gunGroup.remove(currentGunModel);
+                currentGunModel = null;
+            }
 
             const gunContainer = new THREE.Group();
             const gunMat = new THREE.MeshStandardMaterial({ color: 0x1d1d1d, metalness: 0.75, roughness: 0.35 });
@@ -933,33 +944,41 @@
                     dummy.body.material.emissiveIntensity = 0;
                 }
 
-                // ヘルスバー表示（簡易版）
+                // ヘルスバーは一度だけ作り、体力が変わったときだけテクスチャを更新する
                 if (!dummy.healthBarCanvas) {
                     dummy.healthBarCanvas = document.createElement('canvas');
                     dummy.healthBarCanvas.width = 64;
                     dummy.healthBarCanvas.height = 8;
-                    const ctx = dummy.healthBarCanvas.getContext('2d');
-                    ctx.fillStyle = '#222222';
-                    ctx.fillRect(0, 0, 64, 8);
-                    
                     dummy.healthBarTexture = new THREE.CanvasTexture(dummy.healthBarCanvas);
-                    dummy.healthBarMaterial = new THREE.MeshBasicMaterial({ map: dummy.healthBarTexture });
+                    dummy.healthBarMaterial = new THREE.MeshBasicMaterial({
+                        map: dummy.healthBarTexture,
+                        transparent: true,
+                        depthWrite: false,
+                        side: THREE.DoubleSide
+                    });
                     dummy.healthBar = new THREE.Mesh(
                         new THREE.PlaneGeometry(0.8, 0.1),
                         dummy.healthBarMaterial
                     );
                     dummy.healthBar.position.y = 2.5;
+                    dummy.healthBar.userData.isHealthBar = true;
                     dummy.group.add(dummy.healthBar);
+                    dummy.renderedHealth = -1;
                 }
 
-                // ヘルスバー更新
-                const healthPercent = dummy.health / dummy.maxHealth;
-                const ctx = dummy.healthBarCanvas.getContext('2d');
-                ctx.fillStyle = '#222222';
-                ctx.fillRect(0, 0, 64, 8);
-                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
-                ctx.fillRect(0, 0, 64 * healthPercent, 8);
-                dummy.healthBarTexture.needsUpdate = true;
+                if (dummy.renderedHealth !== dummy.health) {
+                    const healthPercent = Math.max(0, Math.min(1, dummy.health / dummy.maxHealth));
+                    const ctx = dummy.healthBarCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, 64, 8);
+                    ctx.fillStyle = '#222222';
+                    ctx.fillRect(0, 0, 64, 8);
+                    ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                    ctx.fillRect(0, 0, 64 * healthPercent, 8);
+                    dummy.healthBarTexture.needsUpdate = true;
+                    dummy.renderedHealth = dummy.health;
+                }
+                // 敵の向きに関係なく、体力バーをプレイヤー側へ向ける
+                dummy.healthBar.quaternion.copy(camera.quaternion);
             }
         }
 
