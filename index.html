@@ -379,21 +379,24 @@
         }
 
         const DUMMY_BOUNDS = { minX: -45, maxX: 45, minZ: -55, maxZ: 5 };
+        function findOpenPosition(margin = 2, maxAttempts = 100) {
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const x = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
+                const z = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
+                const blocked = colliders.some(c =>
+                    x > c.minX - margin && x < c.maxX + margin &&
+                    z > c.minZ - margin && z < c.maxZ + margin
+                );
+                if (!blocked) return { x, z };
+            }
+            // 配置が密な場合でも無限ループでゲーム起動を止めない
+            return { x: 0, z: 0 };
+        }
+
         const dummies = [];
-        for(let i = 0; i < 3; i++) {
-            let x, z, valid;
-            do {
-                valid = true;
-                x = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
-                z = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
-                for(const c of colliders) {
-                    if(x > c.minX - 3 && x < c.maxX + 3 && z > c.minZ - 3 && z < c.maxZ + 3) {
-                        valid = false;
-                        break;
-                    }
-                }
-            } while(!valid);
-            dummies.push(createDummy(x, z));
+        for (let i = 0; i < 3; i++) {
+            const pos = findOpenPosition(3);
+            dummies.push(createDummy(pos.x, pos.z));
         }
 
         const targets = [];
@@ -532,7 +535,14 @@
         const minimapCtx = minimapCanvas.getContext('2d');
         minimapCanvas.width = 150;
         minimapCanvas.height = 150;
-        const MINIMAP_SCALE = 1.5 / 150;
+        // アリーナ全体がミニマップに収まる縮尺（横幅・奥行きの大きい方に合わせる）
+        const MINIMAP_SCALE = 150 / Math.max(
+            DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX,
+            DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ
+        );
+        const MINIMAP_OFFSET_Y = (150 - (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ) * MINIMAP_SCALE) / 2;
+        const mapX = x => (x - DUMMY_BOUNDS.minX) * MINIMAP_SCALE;
+        const mapY = z => (DUMMY_BOUNDS.maxZ - z) * MINIMAP_SCALE + MINIMAP_OFFSET_Y;
 
         function updateMinimap() {
             minimapCtx.fillStyle = '#2a2a2a';
@@ -549,8 +559,8 @@
 
             minimapCtx.fillStyle = '#8b7d72';
             for(const c of colliders) {
-                const px = (c.minX + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
-                const py = (-c.minZ + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+                const px = mapX(c.minX);
+                const py = mapY(c.maxZ);
                 const pw = (c.maxX - c.minX) * MINIMAP_SCALE;
                 const ph = (c.maxZ - c.minZ) * MINIMAP_SCALE;
                 minimapCtx.fillRect(px, py, pw, ph);
@@ -559,16 +569,16 @@
             minimapCtx.fillStyle = '#ff9999';
             for(const dummy of dummies) {
                 if(!dummy.isAlive) continue;
-                const px = (dummy.group.position.x + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
-                const py = (-dummy.group.position.z + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+                const px = mapX(dummy.group.position.x);
+                const py = mapY(dummy.group.position.z);
                 minimapCtx.beginPath();
                 minimapCtx.arc(px, py, 3, 0, Math.PI * 2);
                 minimapCtx.fill();
             }
 
             minimapCtx.fillStyle = '#00ff00';
-            const playerPx = (playerPos.x + DUMMY_BOUNDS.maxX) * MINIMAP_SCALE;
-            const playerPy = (-playerPos.z + DUMMY_BOUNDS.maxZ) * MINIMAP_SCALE;
+            const playerPx = mapX(playerPos.x);
+            const playerPy = mapY(playerPos.z);
             minimapCtx.beginPath();
             minimapCtx.arc(playerPx, playerPy, 4, 0, Math.PI * 2);
             minimapCtx.fill();
@@ -584,6 +594,19 @@
         }
 
         const keys = {};
+        function clearInputState() {
+            for (const key of Object.keys(keys)) keys[key] = false;
+            moveF = 0;
+            moveR = 0;
+            isFiring = false;
+            joyPointerId = null;
+            lookState.pointerId = null;
+            if (knob) knob.style.transform = 'translate(0,0)';
+        }
+        window.addEventListener('blur', clearInputState);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) clearInputState();
+        });
         window.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
             if (e.key === ' ') {
@@ -621,11 +644,15 @@
         });
 
         renderer.domElement.addEventListener('mousedown', () => {
-            if (!isMobile) isFiring = true;
+            if (isMobile) return;
+            if (weapons[currentWeapon].isAutomatic) {
+                isFiring = true;
+            } else {
+                isFiring = false;
+                shoot();
+            }
         });
-        renderer.domElement.addEventListener('mouseup', () => {
-            isFiring = false;
-        });
+        window.addEventListener('mouseup', () => { isFiring = false; });
 
         // Pointer Events でタッチ・マウスを統一し、iPad Edge/Safari の入力差を減らす
         const lookState = { pointerId: null, x: 0, y: 0 };
@@ -763,19 +790,8 @@
                 showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
                 setTimeout(() => {
                     target.scale.set(1, 1, 1);
-                    let newX, newZ, valid;
-                    do {
-                        valid = true;
-                        newX = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
-                        newZ = DUMMY_BOUNDS.minZ + Math.random() * (DUMMY_BOUNDS.maxZ - DUMMY_BOUNDS.minZ);
-                        for (const c of colliders) {
-                            if (newX > c.minX - 2 && newX < c.maxX + 2 && newZ > c.minZ - 2 && newZ < c.maxZ + 2) {
-                                valid = false;
-                                break;
-                            }
-                        }
-                    } while (!valid);
-                    target.position.set(newX, 2 + Math.random() * 4, newZ);
+                    const pos = findOpenPosition(2);
+                    target.position.set(pos.x, 2 + Math.random() * 4, pos.z);
                 }, 2000);
                 return;
             }
@@ -823,11 +839,19 @@
         }
 
         const fireButton = document.getElementById('fire-button');
-        fireButton.addEventListener('pointerdown', e => {
+        function beginFiring(e) {
             e.preventDefault();
-            isFiring = true;
-            fireButton.setPointerCapture(e.pointerId);
-        });
+            if (weapons[currentWeapon].isAutomatic) {
+                isFiring = true;
+            } else {
+                isFiring = false;
+                shoot();
+            }
+            if (e.pointerId !== undefined && fireButton.setPointerCapture) {
+                try { fireButton.setPointerCapture(e.pointerId); } catch (_) {}
+            }
+        }
+        fireButton.addEventListener('pointerdown', beginFiring);
         const stopFiring = () => { isFiring = false; };
         fireButton.addEventListener('pointerup', stopFiring);
         fireButton.addEventListener('pointercancel', stopFiring);
@@ -965,7 +989,10 @@
                 fw.x * moveF + rt.x * moveR,
                 0,
                 fw.z * moveF + rt.z * moveR
-            ).multiplyScalar(MOVE_SPEED * frameScale);
+            );
+            // 斜め移動でも前後左右と同じ速度にする
+            if (moveVec.lengthSq() > 1) moveVec.normalize();
+            moveVec.multiplyScalar(MOVE_SPEED * frameScale);
 
             const nX = playerPos.x + moveVec.x;
             const nZ = playerPos.z + moveVec.z;
