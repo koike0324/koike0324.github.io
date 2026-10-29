@@ -688,9 +688,13 @@
         // Pointer Events でタッチ・マウスを統一し、iPad Edge/Safari の入力差を減らす
         const lookState = { pointerId: null, x: 0, y: 0 };
         window.addEventListener('pointerdown', e => {
-            if (e.pointerType === 'mouse' || e.target.closest('.btn, #joystick-container')) return;
+            if (e.pointerType === 'mouse' || e.target.closest('#joystick-container')) return;
+            // FIREボタンを押したまま、その指を動かしても視点を動かせるようにする
+            // JUMP / RELOAD / SWAP などのボタン操作は視点移動として扱わない
+            const isFireButton = e.target.closest('#fire-button');
+            if (e.target.closest('.btn') && !isFireButton) return;
             const triggerPoint = isTablet ? window.innerWidth * 0.4 : window.innerWidth / 2;
-            if (e.clientX > triggerPoint && lookState.pointerId === null) {
+            if ((e.clientX > triggerPoint || isFireButton) && lookState.pointerId === null) {
                 lookState.pointerId = e.pointerId;
                 lookState.x = e.clientX;
                 lookState.y = e.clientY;
