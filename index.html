@@ -5,10 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ultimate Mobile FPS Arena</title>
     <style>
-        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-        body { position: fixed; inset: 0; touch-action: none; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #game-canvas { position: fixed; inset: 0; z-index: 0; display: block; }
-        #ui-layer { position: fixed; z-index: 10; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        html, body {
+            width: 100%; height: 100%; margin: 0; overflow: hidden;
+            -webkit-user-select: none; user-select: none;
+            -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+        body { position: fixed; inset: 0; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #game-canvas {
+            position: fixed; inset: 0; z-index: 0; display: block;
+            touch-action: none; -webkit-user-select: none; user-select: none;
+        }
+        #ui-layer {
+            position: fixed; z-index: 10; inset: 0; width: 100%; height: 100%; pointer-events: none;
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+        }
 
         #minimap-container {
             position: absolute;
@@ -49,7 +60,9 @@
         .btn {
             position: absolute; pointer-events: auto; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; user-select: none;
+            color: white; font-weight: bold;
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent; touch-action: none;
             border: 2px solid rgba(255,255,255,0.4);
             background: rgba(0,0,0,0.3); transition: transform 0.05s;
         }
@@ -60,6 +73,7 @@
             border-radius: 50%; border: 2px solid rgba(255,255,255,0.2);
             position: absolute; pointer-events: auto; background: rgba(255,255,255,0.1);
             display: none;
+            touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
         }
         #joystick-container.mobile-visible { display: block; }
         #joystick-knob {
@@ -193,6 +207,11 @@
 
     <script type="module">
         import * as THREE from 'three';
+
+        // ゲーム中の長押し選択・コピー用メニュー・ダブルタップ拡大を防ぐ
+        document.addEventListener('selectstart', e => e.preventDefault());
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('dblclick', e => e.preventDefault());
 
         // Edge / Safari の iPad は userAgent がPC扱いになることがあるため、タッチ対応も判定する
         const isIPadOS = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
