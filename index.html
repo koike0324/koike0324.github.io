@@ -112,6 +112,9 @@
         }
         #aim-toggle.enabled { background: rgba(20,125,65,0.9); }
         #ads-button { position:absolute; top:240px; right:20px; z-index:20; pointer-events:auto; cursor:pointer; padding:9px 14px; border:2px solid rgba(255,255,255,.65); border-radius:8px; background:rgba(25,45,70,.82); color:white; font-size:13px; font-weight:bold; touch-action:manipulation; }
+        @media (max-width: 700px) {
+            #ads-button { top:auto; bottom:242px; right:135px; }
+        }
         #ads-button.enabled { background:rgba(20,125,65,.92); }
         #scope-overlay { display:none; position:fixed; inset:0; z-index:8; pointer-events:none; background:radial-gradient(circle at center, transparent 0, transparent 31%, rgba(0,0,0,.96) 32%, rgba(0,0,0,.99) 100%); }
         #scope-overlay::before { content:""; position:absolute; left:50%; top:50%; width: min(64vw,64vh); height:min(64vw,64vh); transform:translate(-50%,-50%); border:2px solid rgba(0,0,0,.95); border-radius:50%; box-shadow:0 0 0 2px rgba(220,230,220,.45), inset 0 0 2px rgba(0,0,0,.9); }
