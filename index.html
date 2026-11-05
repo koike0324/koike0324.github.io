@@ -786,45 +786,52 @@
         // タッチ端末でも確実に反応するよう Pointer Events で切り替える
         aimToggle.addEventListener('pointerdown', toggleAutoAim);
 
-        // 画面中央付近にいる敵だけを補助対象にする。壁の向こうは対象外。
-        function applyAimAssist() {
+        // ONの間は、視界内で最も近い生存中の敵を継続して追いかける
+        function updateAutoAim(delta) {
             if (!autoAimEnabled) return;
-            camera.updateMatrixWorld(true);
-            const center = new THREE.Vector3();
-            const screenPos = new THREE.Vector3();
-            let bestDummy = null;
-            let bestScore = Infinity;
+
+            const origin = playerPos.clone();
+            const forward = new THREE.Vector3(0, 0, -1)
+                .applyQuaternion(new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')))
+                .normalize();
+            const blockers = scene.children.filter(object => object.userData.blocksShots);
+            let best = null;
+            let bestDistance = Infinity;
 
             for (const dummy of dummies) {
                 if (!dummy.isAlive) continue;
-                center.set(
+                const center = new THREE.Vector3(
                     dummy.group.position.x,
                     dummy.group.position.y + 1.0,
                     dummy.group.position.z
                 );
-                screenPos.copy(center).project(camera);
-                if (screenPos.z < -1 || screenPos.z > 1) continue;
-                const screenDistance = Math.hypot(screenPos.x, screenPos.y);
-                if (screenDistance > 0.22) continue;
+                const toTarget = center.clone().sub(origin);
+                const distance = toTarget.length();
+                if (distance < 0.1 || distance >= bestDistance) continue;
 
-                const worldDistance = camera.position.distanceTo(center);
-                const score = screenDistance + worldDistance * 0.0005;
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestDummy = { center: center.clone(), distance: worldDistance };
-                }
+                // 背後の敵へ急に振り向かないよう、現在の視線から約100度以内に限定
+                const direction = toTarget.clone().normalize();
+                if (forward.dot(direction) < 0.17) continue;
+
+                aimRay.set(origin, direction);
+                aimRay.far = distance;
+                const obstruction = aimRay.intersectObjects(blockers, false)[0];
+                if (obstruction && obstruction.distance < distance - 0.15) continue;
+
+                best = { center, distance };
+                bestDistance = distance;
             }
 
-            if (!bestDummy) return;
-            const direction = bestDummy.center.clone().sub(camera.position).normalize();
-            aimRay.set(camera.position, direction);
-            aimRay.far = bestDummy.distance;
-            const blockers = scene.children.filter(object => object.userData.blocksShots);
-            const obstruction = aimRay.intersectObjects(blockers, false)[0];
-            if (obstruction && obstruction.distance < bestDummy.distance - 0.15) return;
+            if (!best) return;
 
-            camera.lookAt(bestDummy.center);
-            camera.updateMatrixWorld(true);
+            const direction = best.center.clone().sub(origin).normalize();
+            const targetYaw = Math.atan2(-direction.x, -direction.z);
+            const targetPitch = Math.asin(Math.max(-1, Math.min(1, direction.y)));
+            const angleDelta = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
+            const trackingStrength = 1 - Math.exp(-Math.max(0, delta) * 7);
+            yaw += angleDelta(targetYaw - yaw) * trackingStrength;
+            pitch += (targetPitch - pitch) * trackingStrength;
+            pitch = Math.max(-1.45, Math.min(1.45, pitch));
         }
 
         let lastShotTime = 0;
@@ -869,7 +876,6 @@
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapon.maxAmmo}`;
             gunGroup.position.z += 0.22;
 
-            applyAimAssist();
             ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
             // 壁・ターゲット・生存中の敵を同じレイで調べ、最も近い交差だけを処理する
@@ -1087,6 +1093,7 @@
             // タブ復帰時の巨大なdeltaで移動や物理が暴れないよう、フレーム時間を制限
             const delta = Math.min(clock.getDelta(), 0.05);
             const frameScale = delta * 60;
+            updateAutoAim(delta);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
             if (!isMobile) {
