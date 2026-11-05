@@ -102,7 +102,7 @@
         #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
         #weapon-display { position: absolute; top: 60px; left: 20px; font-size: 16px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
         #aim-toggle {
-            position: absolute; top: 96px; left: 20px; z-index: 12;
+            position: absolute; top: 190px; right: 20px; left: auto; z-index: 20;
             pointer-events: auto; cursor: pointer;
             padding: 9px 12px; border: 2px solid rgba(255,255,255,0.65);
             border-radius: 8px; background: rgba(35,35,35,0.78); color: white;
@@ -171,8 +171,9 @@
                 left: max(20px, env(safe-area-inset-left));
             }
             #aim-toggle {
-                top: max(96px, calc(96px + env(safe-area-inset-top)));
-                left: max(20px, env(safe-area-inset-left));
+                top: max(190px, calc(190px + env(safe-area-inset-top)));
+                right: max(20px, env(safe-area-inset-right));
+                left: auto;
             }
             #minimap-container {
                 top: max(20px, env(safe-area-inset-top));
@@ -774,12 +775,16 @@
         const aimRay = new THREE.Raycaster();
         let autoAimEnabled = false;
         const aimToggle = document.getElementById('aim-toggle');
-        aimToggle.addEventListener('click', () => {
+        function toggleAutoAim(e) {
+            e.preventDefault();
+            e.stopPropagation();
             autoAimEnabled = !autoAimEnabled;
             aimToggle.textContent = autoAimEnabled ? 'AUTO AIM: ON' : 'AUTO AIM: OFF';
             aimToggle.classList.toggle('enabled', autoAimEnabled);
             aimToggle.setAttribute('aria-pressed', String(autoAimEnabled));
-        });
+        }
+        // タッチ端末でも確実に反応するよう Pointer Events で切り替える
+        aimToggle.addEventListener('pointerdown', toggleAutoAim);
 
         // 画面中央付近にいる敵だけを補助対象にする。壁の向こうは対象外。
         function applyAimAssist() {
