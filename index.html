@@ -101,6 +101,15 @@
 
         #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
         #weapon-display { position: absolute; top: 60px; left: 20px; font-size: 16px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+        #aim-toggle {
+            position: absolute; top: 96px; left: 20px; z-index: 12;
+            padding: 9px 12px; border: 2px solid rgba(255,255,255,0.65);
+            border-radius: 8px; background: rgba(35,35,35,0.78); color: white;
+            font-size: 13px; font-weight: bold; letter-spacing: 0.3px;
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+        }
+        #aim-toggle.enabled { background: rgba(20,125,65,0.9); }
 
         #damage-indicators {
             position: absolute;
@@ -160,6 +169,10 @@
                 top: max(60px, calc(60px + env(safe-area-inset-top)));
                 left: max(20px, env(safe-area-inset-left));
             }
+            #aim-toggle {
+                top: max(96px, calc(96px + env(safe-area-inset-top)));
+                left: max(20px, env(safe-area-inset-left));
+            }
             #minimap-container {
                 top: max(20px, env(safe-area-inset-top));
                 right: max(20px, env(safe-area-inset-right));
@@ -173,6 +186,7 @@
         <div id="crosshair"></div>
         <div id="ammo-display">15 / 15</div>
         <div id="weapon-display">PISTOL</div>
+        <button id="aim-toggle" type="button" aria-pressed="false">AUTO AIM: OFF</button>
 
         <div id="reload-container">
             <div id="reload-text">RELOADING</div>
@@ -756,6 +770,57 @@
         joy.addEventListener('lostpointercapture', releaseJoystick);
 
         const ray = new THREE.Raycaster();
+        const aimRay = new THREE.Raycaster();
+        let autoAimEnabled = false;
+        const aimToggle = document.getElementById('aim-toggle');
+        aimToggle.addEventListener('click', () => {
+            autoAimEnabled = !autoAimEnabled;
+            aimToggle.textContent = autoAimEnabled ? 'AUTO AIM: ON' : 'AUTO AIM: OFF';
+            aimToggle.classList.toggle('enabled', autoAimEnabled);
+            aimToggle.setAttribute('aria-pressed', String(autoAimEnabled));
+        });
+
+        // 画面中央付近にいる敵だけを補助対象にする。壁の向こうは対象外。
+        function applyAimAssist() {
+            if (!autoAimEnabled) return;
+            camera.updateMatrixWorld(true);
+            const center = new THREE.Vector3();
+            const screenPos = new THREE.Vector3();
+            let bestDummy = null;
+            let bestScore = Infinity;
+
+            for (const dummy of dummies) {
+                if (!dummy.isAlive) continue;
+                center.set(
+                    dummy.group.position.x,
+                    dummy.group.position.y + 1.0,
+                    dummy.group.position.z
+                );
+                screenPos.copy(center).project(camera);
+                if (screenPos.z < -1 || screenPos.z > 1) continue;
+                const screenDistance = Math.hypot(screenPos.x, screenPos.y);
+                if (screenDistance > 0.22) continue;
+
+                const worldDistance = camera.position.distanceTo(center);
+                const score = screenDistance + worldDistance * 0.0005;
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestDummy = { center: center.clone(), distance: worldDistance };
+                }
+            }
+
+            if (!bestDummy) return;
+            const direction = bestDummy.center.clone().sub(camera.position).normalize();
+            aimRay.set(camera.position, direction);
+            aimRay.far = bestDummy.distance;
+            const blockers = scene.children.filter(object => object.userData.blocksShots);
+            const obstruction = aimRay.intersectObjects(blockers, false)[0];
+            if (obstruction && obstruction.distance < bestDummy.distance - 0.15) return;
+
+            camera.lookAt(bestDummy.center);
+            camera.updateMatrixWorld(true);
+        }
+
         let lastShotTime = 0;
 
         function showDamageIndicator(damage, screenX, screenY) {
@@ -798,6 +863,7 @@
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapon.maxAmmo}`;
             gunGroup.position.z += 0.22;
 
+            applyAimAssist();
             ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
             // 壁・ターゲット・生存中の敵を同じレイで調べ、最も近い交差だけを処理する
