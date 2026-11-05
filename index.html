@@ -786,20 +786,23 @@
         // タッチ端末でも確実に反応するよう Pointer Events で切り替える
         aimToggle.addEventListener('pointerdown', toggleAutoAim);
 
-        // ONの間は、視界内で最も近い生存中の敵を継続して追いかける
+        // ONの間は狙いを少しずつ補正する。ロック対象を維持して視点の揺れを防ぐ
+        let lockedAimDummy = null;
         function updateAutoAim(delta) {
-            if (!autoAimEnabled) return;
+            if (!autoAimEnabled) {
+                lockedAimDummy = null;
+                return;
+            }
 
             const origin = playerPos.clone();
-            const forward = new THREE.Vector3(0, 0, -1)
-                .applyQuaternion(new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')))
-                .normalize();
+            const viewQuaternion = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(pitch, yaw, 0, 'YXZ')
+            );
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(viewQuaternion).normalize();
             const blockers = scene.children.filter(object => object.userData.blocksShots);
-            let best = null;
-            let bestDistance = Infinity;
 
-            for (const dummy of dummies) {
-                if (!dummy.isAlive) continue;
+            const isVisibleTarget = dummy => {
+                if (!dummy || !dummy.isAlive) return null;
                 const center = new THREE.Vector3(
                     dummy.group.position.x,
                     dummy.group.position.y + 1.0,
@@ -807,28 +810,45 @@
                 );
                 const toTarget = center.clone().sub(origin);
                 const distance = toTarget.length();
-                if (distance < 0.1 || distance >= bestDistance) continue;
-
-                // 背後の敵へ急に振り向かないよう、現在の視線から約100度以内に限定
+                if (distance < 0.1) return null;
                 const direction = toTarget.clone().normalize();
-                if (forward.dot(direction) < 0.17) continue;
+                if (forward.dot(direction) < 0.35) return null;
 
                 aimRay.set(origin, direction);
                 aimRay.far = distance;
                 const obstruction = aimRay.intersectObjects(blockers, false)[0];
-                if (obstruction && obstruction.distance < distance - 0.15) continue;
+                if (obstruction && obstruction.distance < distance - 0.15) return null;
 
-                best = { center, distance };
-                bestDistance = distance;
+                const projected = center.clone().project(camera);
+                if (projected.z < -1 || projected.z > 1) return null;
+                return { center, distance, screenDistance: Math.hypot(projected.x, projected.y) };
+            };
+
+            // 現在の対象を優先し、対象が視界から外れたときだけ別の敵を選ぶ
+            let target = isVisibleTarget(lockedAimDummy);
+            if (!target || target.screenDistance > 0.5) {
+                lockedAimDummy = null;
+                let bestScore = Infinity;
+                for (const dummy of dummies) {
+                    const candidate = isVisibleTarget(dummy);
+                    if (!candidate || candidate.screenDistance > 0.3) continue;
+                    const score = candidate.screenDistance + candidate.distance * 0.0005;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        lockedAimDummy = dummy;
+                        target = candidate;
+                    }
+                }
             }
+            if (!target) return;
 
-            if (!best) return;
-
-            const direction = best.center.clone().sub(origin).normalize();
+            const direction = target.center.clone().sub(origin).normalize();
             const targetYaw = Math.atan2(-direction.x, -direction.z);
             const targetPitch = Math.asin(Math.max(-1, Math.min(1, direction.y)));
             const angleDelta = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
-            const trackingStrength = 1 - Math.exp(-Math.max(0, delta) * 7);
+
+            // 補正を弱め、手動エイムを邪魔しない滑らかな追尾にする
+            const trackingStrength = 1 - Math.exp(-Math.max(0, delta) * 2.2);
             yaw += angleDelta(targetYaw - yaw) * trackingStrength;
             pitch += (targetPitch - pitch) * trackingStrength;
             pitch = Math.max(-1.45, Math.min(1.45, pitch));
