@@ -116,7 +116,7 @@
             #ads-button { top:auto; bottom:242px; right:135px; }
         }
         #ads-button.enabled { background:rgba(20,125,65,.92); }
-        #scope-overlay { display:none; position:fixed; inset:0; z-index:8; pointer-events:none; background:radial-gradient(circle at center, transparent 0, transparent 32vmin, rgba(0,0,0,.96) 32.5vmin, rgba(0,0,0,.99) 100%); }
+        #scope-overlay { display:none; position:fixed; inset:0; z-index:8; pointer-events:none; background:rgba(0,0,0,.97); -webkit-mask-image:radial-gradient(circle at center, transparent 0 31vmin, #000 32vmin); mask-image:radial-gradient(circle at center, transparent 0 31vmin, #000 32vmin); }
         #scope-overlay::before { content:""; position:absolute; left:50%; top:50%; width:64vmin; height:64vmin; transform:translate(-50%,-50%); border:2px solid rgba(0,0,0,.95); border-radius:50%; box-shadow:0 0 0 2px rgba(220,230,220,.45), inset 0 0 2px rgba(0,0,0,.9); }
         #scope-overlay::after { content:""; position:absolute; left:50%; top:50%; width:64vmin; height:64vmin; transform:translate(-50%,-50%); background:linear-gradient(transparent calc(50% - 1px),rgba(20,20,20,.9) 50%,transparent calc(50% + 1px)),linear-gradient(90deg,transparent calc(50% - 1px),rgba(20,20,20,.9) 50%,transparent calc(50% + 1px)); border-radius:50%; }
 
