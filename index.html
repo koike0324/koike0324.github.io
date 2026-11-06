@@ -374,6 +374,45 @@
         addTree(-25, 25);
         addTree(25, 25);
 
+        // 戦闘エリアに低い壁や崩れた遮蔽物を追加して、曲がりくねった通路を作る
+        // プレイヤーのリスポーン地点 (0, 10) 周辺は平らで広く保つ
+        const coverMat = new THREE.MeshStandardMaterial({color: 0x77766d, roughness: 1});
+        const rubbleMat = new THREE.MeshStandardMaterial({color: 0x9a8065, roughness: 1});
+        const coverLayout = [
+            [-34,-8,12,2.4,1.2,coverMat], [-28,-13,1.2,2.8,10,coverMat],
+            [-35,-20,9,1.8,1.2,rubbleMat], [-12,-7,1.2,2.2,9,coverMat],
+            [13,-8,11,2.5,1.2,coverMat], [24,-14,1.2,2.7,12,rubbleMat],
+            [34,-22,10,1.8,1.2,coverMat], [8,-23,1.2,2.2,9,rubbleMat],
+            [-35,-38,12,2.2,1.2,coverMat], [-27,-43,1.2,2.8,9,rubbleMat],
+            [-12,-31,10,1.7,1.2,rubbleMat], [2,-38,1.2,2.5,11,coverMat],
+            [29,-35,12,2.1,1.2,coverMat], [35,-42,1.2,2.8,10,rubbleMat],
+            [-34,-52,9,1.8,1.2,rubbleMat], [-20,-55,1.2,2.4,8,coverMat],
+            [18,-53,10,2.2,1.2,coverMat], [27,-48,1.2,2.6,9,rubbleMat],
+            [-8,-63,12,2.0,1.2,coverMat], [8,-66,1.2,2.4,9,rubbleMat]
+        ];
+        for (const [x,z,w,h,d,mat] of coverLayout) {
+            addBox(x,z,w,h,d,mat);
+        }
+
+        // 低い岩状の遮蔽物。周囲を回り込めるよう間隔を空けて配置
+        function addRubble(x,z,sx,sy,sz) {
+            const rock = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(1, 0),
+                rubbleMat
+            );
+            rock.scale.set(sx,sy,sz);
+            rock.position.set(x,sy*0.72,z);
+            rock.rotation.set(0.12, x*0.07, 0.08);
+            scene.add(rock);
+            colliders.push({minX:x-sx*0.82,maxX:x+sx*0.82,minZ:z-sz*0.82,maxZ:z+sz*0.82,width:sx*1.64,depth:sz*1.64,height:sy*1.44});
+        }
+        addRubble(-39,-14,2.2,1.5,1.8);
+        addRubble(39,-12,2.4,1.7,2.0);
+        addRubble(-17,-46,2.0,1.4,2.4);
+        addRubble(15,-44,2.3,1.6,2.0);
+        addRubble(-39,-61,2.5,1.8,2.1);
+        addRubble(38,-60,2.2,1.5,2.3);
+
         function createDummy(x, z) {
             const dummyGroup = new THREE.Group();
             dummyGroup.position.set(x, 0, z);
