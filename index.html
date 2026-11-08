@@ -415,21 +415,21 @@
         addRubble(38,-60,2.2,1.5,2.3);
 
         // 広い3エリア：平原・丘陵・都会。スタート地点周辺は従来どおり平ら
-        function addGroundZone(x,z,w,d,color) {
+        function addGroundZone(x,z,w,d,color,height=0.025) {
             const zone = new THREE.Mesh(
                 new THREE.PlaneGeometry(w,d),
-                new THREE.MeshStandardMaterial({color, roughness:1, side:THREE.DoubleSide})
+                new THREE.MeshStandardMaterial({color, roughness:1, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1})
             );
             zone.rotation.x = -Math.PI/2;
-            zone.position.set(x,0.025,z);
+            zone.position.set(x,height,z);
             scene.add(zone);
         }
         // 平原：南東側に広い平坦地と草地の色分け
-        addGroundZone(92, -8, 150, 150, 0x78a94e);
-        addGroundZone(92, -8, 100, 100, 0x8fba5d);
+        addGroundZone(92, -8, 150, 150, 0x78a94e,0.021);
+        addGroundZone(92, -8, 100, 100, 0x8fba5d,0.024);
 
         // 丘陵：北西側に複数の丸い丘を配置。丘の裾は障害物として判定
-        addGroundZone(-105, -82, 145, 170, 0x667f3c);
+        addGroundZone(-105, -82, 145, 170, 0x667f3c,0.022);
         const hillMat = new THREE.MeshStandardMaterial({color:0x718b45, roughness:1, flatShading:true});
         const hillTopMat = new THREE.MeshStandardMaterial({color:0x879b52, roughness:1, flatShading:true});
         function addHill(x,z,rx,rz,height,mat=hillMat) {
@@ -449,7 +449,7 @@
         addHill(-55,-155,20,17,10,hillTopMat);
 
         // 都会：箱形の簡易絵ではなく、窓・屋上設備付きの3Dビルを生成
-        addGroundZone(98,-92,150,140,0x555b60);
+        addGroundZone(98,-92,150,140,0x555b60,0.03);
         const cityRoadMat = new THREE.MeshStandardMaterial({color:0x30363b, roughness:0.95});
         const roadLineMat = new THREE.MeshStandardMaterial({color:0xd9d2a0, roughness:0.9});
         const glassMats = [
@@ -483,7 +483,12 @@
             const sideW = (w-doorW)/2;
             buildingWall(x-w/2+sideW/2,h/2,z-d/2+wall/2,sideW,h,wall);
             buildingWall(x+w/2-sideW/2,h/2,z-d/2+wall/2,sideW,h,wall);
-            buildingWall(x,doorH+(h-doorH)/2,z-d/2+wall/2,doorW,h-doorH,wall);
+            // 入口上部の梁は見た目だけにし、プレイヤーの通行を妨げない
+            const lintelWall = new THREE.Mesh(new THREE.BoxGeometry(doorW,h-doorH,wall),mat);
+            lintelWall.position.set(x,doorH+(h-doorH)/2,z-d/2+wall/2);
+            lintelWall.castShadow = true;
+            lintelWall.receiveShadow = true;
+            scene.add(lintelWall);
             const insideFloor = new THREE.Mesh(
                 new THREE.PlaneGeometry(w-wall*2,d-wall*2),
                 new THREE.MeshStandardMaterial({color:0x77736b,roughness:0.95,side:THREE.DoubleSide})
