@@ -465,12 +465,41 @@
         ];
         function createCityBuilding(x,z,w,d,h,index) {
             const mat = buildingMats[index % buildingMats.length];
-            const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
-            body.position.set(x,h/2,z);
-            body.castShadow = true;
-            body.receiveShadow = true;
-            scene.add(body);
-            colliders.push({minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2,width:w,depth:d,height:h});
+            // 建物を中空にし、正面中央に入口を設ける
+            const wall = 0.65;
+            const doorW = Math.min(4.2, w * 0.34);
+            const doorH = 3.4;
+            function buildingWall(px,py,pz,bw,bh,bd) {
+                const part = new THREE.Mesh(new THREE.BoxGeometry(bw,bh,bd),mat);
+                part.position.set(px,py,pz);
+                part.castShadow = true;
+                part.receiveShadow = true;
+                scene.add(part);
+                colliders.push({minX:px-bw/2,maxX:px+bw/2,minZ:pz-bd/2,maxZ:pz+bd/2,width:bw,depth:bd,height:bh});
+            }
+            buildingWall(x-w/2+wall/2,h/2,z,wall,h,d);
+            buildingWall(x+w/2-wall/2,h/2,z,wall,h,d);
+            buildingWall(x,h/2,z+d/2-wall/2,w,h,wall);
+            const sideW = (w-doorW)/2;
+            buildingWall(x-w/2+sideW/2,h/2,z-d/2+wall/2,sideW,h,wall);
+            buildingWall(x+w/2-sideW/2,h/2,z-d/2+wall/2,sideW,h,wall);
+            buildingWall(x,doorH+(h-doorH)/2,z-d/2+wall/2,doorW,h-doorH,wall);
+            const insideFloor = new THREE.Mesh(
+                new THREE.PlaneGeometry(w-wall*2,d-wall*2),
+                new THREE.MeshStandardMaterial({color:0x77736b,roughness:0.95,side:THREE.DoubleSide})
+            );
+            insideFloor.rotation.x=-Math.PI/2;
+            insideFloor.position.set(x,0.035,z);
+            scene.add(insideFloor);
+            const doorFrameMat = new THREE.MeshStandardMaterial({color:0x343b42,metalness:0.45,roughness:0.55});
+            for(const side of [-1,1]) {
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18,doorH,0.2),doorFrameMat);
+                frame.position.set(x+side*doorW/2,doorH/2,z-d/2);
+                scene.add(frame);
+            }
+            const lintel = new THREE.Mesh(new THREE.BoxGeometry(doorW+0.18,0.18,0.2),doorFrameMat);
+            lintel.position.set(x,doorH,z-d/2);
+            scene.add(lintel);
             const windowMat = glassMats[index % glassMats.length];
             const rows = Math.max(3,Math.floor(h/3.2));
             const colsFront = Math.max(2,Math.floor(w/2.4));
