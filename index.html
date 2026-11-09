@@ -35,7 +35,13 @@
         }
         #start-title { margin: 0 0 8px; font-size: clamp(30px, 7vw, 48px); letter-spacing: 2px; }
         #start-subtitle { margin: 0 0 24px; color: #a9c8d8; font-size: 14px; letter-spacing: 3px; }
-        #start-description { margin: 0 auto 24px; color: #d5e0e8; line-height: 1.8; font-size: 14px; }
+        #start-description { margin: 0 auto 18px; color: #d5e0e8; line-height: 1.8; font-size: 14px; }
+        #spawn-title { margin: 18px 0 10px; color: #c8dce9; font-size: 13px; letter-spacing: 1.5px; }
+        #spawn-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; margin: 0 auto 20px; }
+        .spawn-option { min-height: 48px; padding: 10px 8px; border: 1px solid rgba(255,255,255,.25); border-radius: 9px; background: rgba(255,255,255,.07); color: #eaf5fb; font-size: 14px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+        .spawn-option.selected { border-color: #45c7ff; background: rgba(25,145,205,.32); box-shadow: inset 0 0 0 1px #45c7ff, 0 0 14px rgba(40,170,230,.18); }
+        .spawn-option:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        #spawn-status { min-height: 18px; margin: -8px 0 16px; color: #9edfff; font-size: 12px; }
         #start-button {
             width: min(280px, 100%); padding: 15px 24px; border: 0; border-radius: 10px;
             background: linear-gradient(135deg,#20a8d8,#1767bd); color: white;
@@ -44,6 +50,11 @@
         }
         #start-button:active { transform: scale(.98); }
         #start-hint { margin: 16px 0 0; color: #91a5b5; font-size: 12px; }
+        @media (max-width: 520px) {
+            #start-panel { padding: 25px 18px; }
+            #spawn-options { gap: 7px; }
+            .spawn-option { min-height: 44px; font-size: 13px; }
+        }
 
         #minimap-container {
             position: absolute;
@@ -220,7 +231,15 @@
         <div id="start-panel">
             <h1 id="start-title">FPS ARENA</h1>
             <p id="start-subtitle">TACTICAL COMBAT</p>
-            <p id="start-description">広大なフィールドを探索して、敵との戦闘に挑もう。<br>準備ができたらゲームを開始しよう。</p>
+            <p id="start-description">最初に出現するエリアを選択しよう。選んだエリア内でリスポーンするよ。</p>
+            <h2 id="spawn-title">RESPAWN LOCATION</h2>
+            <div id="spawn-options" role="group" aria-label="リスポーンエリア">
+                <button class="spawn-option selected" type="button" data-area="plains" aria-pressed="true">🌿 平原</button>
+                <button class="spawn-option" type="button" data-area="hills" aria-pressed="false">⛰️ 丘</button>
+                <button class="spawn-option" type="button" data-area="city" aria-pressed="false">🏙️ 都会</button>
+                <button class="spawn-option" type="button" data-area="random" aria-pressed="false">🎲 ランダム</button>
+            </div>
+            <p id="spawn-status" aria-live="polite">選択中：平原</p>
             <button id="start-button" type="button">GAME START</button>
             <p id="start-hint">PC：WASDで移動・マウスで視点操作<br>スマホ：画面のコントローラーで操作</p>
         </div>
@@ -813,6 +832,8 @@
         const playerPos = new THREE.Vector3(0, 1.6, 10);
         const MOVE_SPEED = 0.15;
         const PLAYER_RADIUS = 0.5;
+        let selectedSpawnArea = 'plains';
+        let activeSpawnArea = 'plains';
 
         const reloadUI = document.getElementById('reload-container');
         const reloadBar = document.getElementById('reload-bar-fill');
@@ -1265,6 +1286,39 @@
             return false;
         }
 
+        // 各エリアの安全な候補地点。実際の障害物と重なる候補は選ばない
+        const SPAWN_POINTS = {
+            plains: [[35,35],[150,35],[35,-10],[150,-10],[90,48],[145,48]],
+            hills: [[-168,0],[-40,0],[-168,-115],[-35,-165],[-170,-80],[-40,-20]],
+            city: [[98,-92],[98,-38],[98,-145],[30,-92],[170,-92]]
+        };
+        const SPAWN_AREA_NAMES = {plains:'平原', hills:'丘', city:'都会'};
+        function getSpawnPosition(area) {
+            const candidates = (SPAWN_POINTS[area] || SPAWN_POINTS.plains)
+                .filter(([x,z]) => !checkCollision(x,z,PLAYER_RADIUS + 0.25));
+            const pool = candidates.length ? candidates : SPAWN_POINTS[area] || SPAWN_POINTS.plains;
+            const [x,z] = pool[Math.floor(Math.random() * pool.length)];
+            return {x,z};
+        }
+
+        // エリア選択を維持して再出現。random選択時だけ、復帰ごとにエリアも抽選する
+        function respawnPlayer(rerollRandomArea = true) {
+            if (selectedSpawnArea === 'random' && rerollRandomArea) {
+                const areas = ['plains','hills','city'];
+                activeSpawnArea = areas[Math.floor(Math.random() * areas.length)];
+            } else if (selectedSpawnArea !== 'random') {
+                activeSpawnArea = selectedSpawnArea;
+            }
+            const spawn = getSpawnPosition(activeSpawnArea);
+            playerPos.set(spawn.x, 1.6, spawn.z);
+            velocityY = 0;
+            isGrounded = true;
+            yaw = 0;
+            pitch = -0.35;
+            clearInputState();
+            return spawn;
+        }
+
         function updateDummies(delta) {
             for (const dummy of dummies) {
                 if (!dummy.isAlive) continue;
@@ -1350,8 +1404,25 @@
 
         const clock = new THREE.Clock();
         let gameStarted = false;
+        const spawnOptionButtons = [...document.querySelectorAll('.spawn-option')];
+        const spawnStatus = document.getElementById('spawn-status');
+        spawnOptionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (gameStarted) return;
+                selectedSpawnArea = button.dataset.area;
+                spawnOptionButtons.forEach(option => {
+                    const isSelected = option === button;
+                    option.classList.toggle('selected', isSelected);
+                    option.setAttribute('aria-pressed', String(isSelected));
+                });
+                spawnStatus.textContent = selectedSpawnArea === 'random'
+                    ? '選択中：ランダム（復帰ごとにエリアも抽選）'
+                    : '選択中：' + SPAWN_AREA_NAMES[selectedSpawnArea] + '（エリア内でランダムに出現）';
+            });
+        });
         document.getElementById('start-button').addEventListener('click', () => {
             if (gameStarted) return;
+            respawnPlayer(true);
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (!isMobile && document.body.requestPointerLock) {
