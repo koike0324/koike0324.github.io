@@ -320,6 +320,9 @@
         }
 
         const colliders = [];
+        // プレイヤーが歩いて登れる階段・高架の高さ情報
+        const walkableRamps = [];
+        const walkablePlatforms = [];
         const wallMat = new THREE.MeshStandardMaterial({color: 0xc4a570, roughness: 0.9});
         const damagedWallMat = new THREE.MeshStandardMaterial({color: 0xb8956f, roughness: 0.95});
         const metalMat = new THREE.MeshStandardMaterial({color: 0xaaaaaa, metalness: 0.8, roughness: 0.2});
@@ -512,11 +515,25 @@
                 upperFloor.position.set(x,levelY,z);
                 upperFloor.receiveShadow = true;
                 scene.add(upperFloor);
+                walkablePlatforms.push({minX:x-w/2+wall,maxX:x+w/2-wall,minZ:z-d/2+wall,maxZ:z+d/2-wall,height:levelY+0.12});
 
                 // 各階をつなぐ階段（見た目用）
                 const stairWidth = Math.min(2.4,w*0.28);
                 const stairLength = Math.min(5.2,d*0.55);
                 const steps = 8;
+                // 階段の下に歩行可能な傾斜面を設け、連続して上れるようにする
+                const rampMesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(stairWidth,0.16,stairLength),
+                    stairMat
+                );
+                rampMesh.position.set(x-w*0.22,levelY/2,z);
+                rampMesh.rotation.x = -Math.atan2(levelY,stairLength);
+                scene.add(rampMesh);
+                walkableRamps.push({
+                    minX:x-w*0.22-stairWidth/2,maxX:x-w*0.22+stairWidth/2,
+                    minZ:z-stairLength/2,maxZ:z+stairLength/2,
+                    lowY:levelY-4.2,highY:levelY
+                });
                 for(let step=0; step<steps; step++) {
                     const tread = new THREE.Mesh(
                         new THREE.BoxGeometry(stairWidth,0.18,stairLength/steps),
@@ -585,6 +602,9 @@
         const overpassMat = new THREE.MeshStandardMaterial({color:0x555d65,roughness:0.88});
         const overpassEdgeMat = new THREE.MeshStandardMaterial({color:0x343b42,roughness:0.82});
         const supportMat = new THREE.MeshStandardMaterial({color:0x777f86,roughness:0.9});
+        // 高架へ歩いて登れるスロープを左右に設置
+        walkableRamps.push({minX:94,maxX:102,minZ:-126,maxZ:-107,lowY:0,highY:6.2,axis:"z",direction:1});
+        walkableRamps.push({minX:94,maxX:102,minZ:-77,maxZ:-58,lowY:6.2,highY:0,axis:"z",direction:-1});
         const overpassDeck = new THREE.Mesh(new THREE.BoxGeometry(9,0.7,30),overpassMat);
         overpassDeck.position.set(98,6.2,-92);
         overpassDeck.receiveShadow = true;
@@ -1282,8 +1302,10 @@
             startReload();
         });
 
-        function checkCollision(x, z, radius) {
+        function checkCollision(x, z, radius, feetY = 0) {
             for (const c of colliders) {
+                // 今いる階より低い壁・支柱は衝突対象にしない
+                if (c.height !== undefined && c.height < feetY - 0.25) continue;
                 const closestX = Math.max(c.minX, Math.min(x, c.maxX));
                 const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
                 const distX = x - closestX;
@@ -1415,19 +1437,41 @@
             const nX = playerPos.x + moveVec.x;
             const nZ = playerPos.z + moveVec.z;
 
-            if (!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
+            const feetY = Math.max(0,playerPos.y-1.6);
+            if (!checkCollision(nX, playerPos.z, PLAYER_RADIUS, feetY)) {
                 playerPos.x = nX;
             }
-            if (!checkCollision(playerPos.x, nZ, PLAYER_RADIUS)) {
+            if (!checkCollision(playerPos.x, nZ, PLAYER_RADIUS, feetY)) {
                 playerPos.z = nZ;
             }
 
-            velocityY -= 0.019 * frameScale;
-            playerPos.y += velocityY * frameScale;
-            if (playerPos.y <= 1.6) {
-                playerPos.y = 1.6;
+            // 階段・高架スロープ・各階の床に合わせて足元の高さを更新
+            let supportY = 0;
+            for(const ramp of walkableRamps) {
+                if(playerPos.x >= ramp.minX && playerPos.x <= ramp.maxX && playerPos.z >= ramp.minZ && playerPos.z <= ramp.maxZ) {
+                    let t = (playerPos.z-ramp.minZ)/(ramp.maxZ-ramp.minZ);
+                    if(ramp.direction === -1) t = 1-t;
+                    supportY = Math.max(supportY,ramp.lowY+(ramp.highY-ramp.lowY)*Math.max(0,Math.min(1,t)));
+                }
+            }
+            for(const platform of walkablePlatforms) {
+                if(playerPos.x >= platform.minX && playerPos.x <= platform.maxX && playerPos.z >= platform.minZ && playerPos.z <= platform.maxZ && feetY >= platform.height-1.25) {
+                    supportY = Math.max(supportY,platform.height);
+                }
+            }
+            const targetPlayerY = supportY + 1.6;
+            if(playerPos.y > targetPlayerY || (supportY > 0 && playerPos.y < targetPlayerY+0.25)) {
+                playerPos.y = targetPlayerY;
                 velocityY = 0;
                 isGrounded = true;
+            } else {
+                velocityY -= 0.019 * frameScale;
+                playerPos.y += velocityY * frameScale;
+                if (playerPos.y <= 1.6) {
+                    playerPos.y = 1.6;
+                    velocityY = 0;
+                    isGrounded = true;
+                }
             }
 
             if (isFiring && !isReloading) {
