@@ -320,9 +320,6 @@
         }
 
         const colliders = [];
-        // プレイヤーが歩いて登れる階段・高架の高さ情報
-        const walkableRamps = [];
-        const walkablePlatforms = [];
         const wallMat = new THREE.MeshStandardMaterial({color: 0xc4a570, roughness: 0.9});
         const damagedWallMat = new THREE.MeshStandardMaterial({color: 0xb8956f, roughness: 0.95});
         const metalMat = new THREE.MeshStandardMaterial({color: 0xaaaaaa, metalness: 0.8, roughness: 0.2});
@@ -499,54 +496,6 @@
             insideFloor.rotation.x=-Math.PI/2;
             insideFloor.position.set(x,0.035,z);
             scene.add(insideFloor);
-
-            // 2階以上の室内フロアと階段を追加（建物ごとに階数を変える）
-            const floorLevels = [];
-            const levelCount = Math.max(2, Math.min(5, Math.floor(h / 7)));
-            const upperFloorMat = new THREE.MeshStandardMaterial({color:0x918b80,roughness:0.92,side:THREE.DoubleSide});
-            const stairMat = new THREE.MeshStandardMaterial({color:0x68645e,roughness:0.9});
-            for(let level=1; level<levelCount; level++) {
-                const levelY = Math.min(h-3, level*4.2);
-                floorLevels.push(levelY);
-                const upperFloor = new THREE.Mesh(
-                    new THREE.BoxGeometry(w-wall*2,0.22,d-wall*2),
-                    upperFloorMat
-                );
-                upperFloor.position.set(x,levelY,z);
-                upperFloor.receiveShadow = true;
-                scene.add(upperFloor);
-                walkablePlatforms.push({minX:x-w/2+wall,maxX:x+w/2-wall,minZ:z-d/2+wall,maxZ:z+d/2-wall,height:levelY+0.12});
-
-                // 各階をつなぐ階段（見た目用）
-                const stairWidth = Math.min(2.4,w*0.28);
-                const stairLength = Math.min(5.2,d*0.55);
-                const steps = 8;
-                // 階段の下に歩行可能な傾斜面を設け、連続して上れるようにする
-                const rampMesh = new THREE.Mesh(
-                    new THREE.BoxGeometry(stairWidth,0.16,stairLength),
-                    stairMat
-                );
-                rampMesh.position.set(x-w*0.22,levelY/2,z);
-                rampMesh.rotation.x = -Math.atan2(levelY,stairLength);
-                scene.add(rampMesh);
-                walkableRamps.push({
-                    minX:x-w*0.22-stairWidth/2,maxX:x-w*0.22+stairWidth/2,
-                    minZ:z-stairLength/2,maxZ:z+stairLength/2,
-                    lowY:levelY-4.2,highY:levelY
-                });
-                for(let step=0; step<steps; step++) {
-                    const tread = new THREE.Mesh(
-                        new THREE.BoxGeometry(stairWidth,0.18,stairLength/steps),
-                        stairMat
-                    );
-                    tread.position.set(
-                        x-w*0.22,
-                        (levelY-4.2)+((step+0.5)/steps)*4.2,
-                        z-d*0.22+(step+0.5)*(stairLength/steps)
-                    );
-                    scene.add(tread);
-                }
-            }
             const doorFrameMat = new THREE.MeshStandardMaterial({color:0x343b42,metalness:0.45,roughness:0.55});
             for(const side of [-1,1]) {
                 const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18,doorH,0.2),doorFrameMat);
@@ -597,41 +546,6 @@
         roadZ.rotation.x=-Math.PI/2; roadZ.position.set(98,0.045,-92); scene.add(roadZ);
         const roadMark = new THREE.Mesh(new THREE.PlaneGeometry(0.35,130),roadLineMat);
         roadMark.rotation.x=-Math.PI/2; roadMark.position.set(98,0.06,-92); scene.add(roadMark);
-
-        // 立体交差：中央交差点の上を通る高架歩道・道路
-        const overpassMat = new THREE.MeshStandardMaterial({color:0x555d65,roughness:0.88});
-        const overpassEdgeMat = new THREE.MeshStandardMaterial({color:0x343b42,roughness:0.82});
-        const supportMat = new THREE.MeshStandardMaterial({color:0x777f86,roughness:0.9});
-        // 高架へ歩いて登れるスロープを左右に設置
-        walkableRamps.push({minX:94,maxX:102,minZ:-126,maxZ:-107,lowY:0,highY:6.2,axis:"z",direction:1});
-        walkableRamps.push({minX:94,maxX:102,minZ:-77,maxZ:-58,lowY:6.2,highY:0,axis:"z",direction:-1});
-        const overpassDeck = new THREE.Mesh(new THREE.BoxGeometry(9,0.7,30),overpassMat);
-        overpassDeck.position.set(98,6.2,-92);
-        overpassDeck.receiveShadow = true;
-        overpassDeck.castShadow = true;
-        scene.add(overpassDeck);
-        // 高架の両側に傾斜路をつなげる
-        for(const side of [-1,1]) {
-            const ramp = new THREE.Mesh(new THREE.BoxGeometry(9,0.55,34),overpassMat);
-            ramp.position.set(98,3.0,-92+side*32);
-            ramp.rotation.x = side*0.18;
-            ramp.receiveShadow = true;
-            scene.add(ramp);
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.22,1.0,30),overpassEdgeMat);
-            rail.position.set(93.5,6.95,-92);
-            scene.add(rail);
-            const rail2 = rail.clone();
-            rail2.position.x = 102.5;
-            scene.add(rail2);
-        }
-        for(const z of [-103,-92,-81]) {
-            for(const x of [94,102]) {
-                const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.9,6,0.9),supportMat);
-                pillar.position.set(x,3,z);
-                scene.add(pillar);
-                colliders.push({minX:x-0.45,maxX:x+0.45,minZ:z-0.45,maxZ:z+0.45,width:0.9,depth:0.9,height:6});
-            }
-        }
         const cityBuildings = [
             [55,-53,15,15,24],[80,-53,18,16,38],[112,-53,20,16,29],[140,-53,14,16,20],
             [55,-82,15,18,32],[112,-82,20,18,48],[140,-82,14,18,27],
@@ -861,17 +775,8 @@
 
         // iPadでも開始時に地面と建物が確実に視界へ入るよう、初期視点を下向きにする
         let yaw = 0, pitch = -0.35, velocityY = 0, isGrounded = true;
-        let moveF = 0, moveR = 0, currentSupportY = 0;
+        let moveF = 0, moveR = 0;
         const playerPos = new THREE.Vector3(0, 1.6, 10);
-        function tryJump() {
-            const standingY = currentSupportY + 1.6;
-            // 接地フラグが一瞬ずれても、足場の高さに立っていればジャンプ可能
-            const standingOnSurface = Math.abs(playerPos.y - standingY) < 0.22;
-            if (isGrounded || standingOnSurface) {
-                velocityY = 0.48;
-                isGrounded = false;
-            }
-        }
         const MOVE_SPEED = 0.15;
         const PLAYER_RADIUS = 0.5;
 
@@ -957,9 +862,12 @@
         });
         window.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
-            if (e.code === 'Space' || e.key === ' ') {
+            if (e.key === ' ') {
                 e.preventDefault();
-                if (!e.repeat) tryJump();
+                if (isGrounded) {
+                    velocityY = 0.36;
+                    isGrounded = false;
+                }
             }
             if (e.key.toLowerCase() === 'r') {
                 e.preventDefault();
@@ -1294,7 +1202,10 @@
 
         document.getElementById('jump-button').addEventListener('pointerdown', e => {
             e.preventDefault();
-            tryJump();
+            if (isGrounded) {
+                velocityY = 0.36;
+                isGrounded = false;
+            }
         });
         document.getElementById('weapon-swap-button').addEventListener('pointerdown', e => {
             e.preventDefault();
@@ -1305,10 +1216,8 @@
             startReload();
         });
 
-        function checkCollision(x, z, radius, feetY = 0) {
+        function checkCollision(x, z, radius) {
             for (const c of colliders) {
-                // 今いる階より低い壁・支柱は衝突対象にしない
-                if (c.height !== undefined && c.height < feetY - 0.25) continue;
                 const closestX = Math.max(c.minX, Math.min(x, c.maxX));
                 const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
                 const distX = x - closestX;
@@ -1440,47 +1349,19 @@
             const nX = playerPos.x + moveVec.x;
             const nZ = playerPos.z + moveVec.z;
 
-            const feetY = Math.max(0,playerPos.y-1.6);
-            if (!checkCollision(nX, playerPos.z, PLAYER_RADIUS, feetY)) {
+            if (!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
                 playerPos.x = nX;
             }
-            if (!checkCollision(playerPos.x, nZ, PLAYER_RADIUS, feetY)) {
+            if (!checkCollision(playerPos.x, nZ, PLAYER_RADIUS)) {
                 playerPos.z = nZ;
             }
 
-            // 階段・高架スロープ・各階の床に合わせて足元の高さを更新
-            let supportY = 0;
-            for(const ramp of walkableRamps) {
-                if(playerPos.x >= ramp.minX && playerPos.x <= ramp.maxX && playerPos.z >= ramp.minZ && playerPos.z <= ramp.maxZ) {
-                    let t = (playerPos.z-ramp.minZ)/(ramp.maxZ-ramp.minZ);
-                    if(ramp.direction === -1) t = 1-t;
-                    supportY = Math.max(supportY,ramp.lowY+(ramp.highY-ramp.lowY)*Math.max(0,Math.min(1,t)));
-                }
-            }
-            for(const platform of walkablePlatforms) {
-                if(playerPos.x >= platform.minX && playerPos.x <= platform.maxX && playerPos.z >= platform.minZ && playerPos.z <= platform.maxZ && feetY >= platform.height-1.25) {
-                    supportY = Math.max(supportY,platform.height);
-                }
-            }
-            currentSupportY = supportY;
-            const targetPlayerY = supportY + 1.6;
-            // 接地中は坂や階段の高さに追従。ジャンプ中は上昇を妨げず、
-            // 落下して足場の高さまで戻ったときだけ着地させる。
-            if (isGrounded) {
-                playerPos.y = targetPlayerY;
+            velocityY -= 0.019 * frameScale;
+            playerPos.y += velocityY * frameScale;
+            if (playerPos.y <= 1.6) {
+                playerPos.y = 1.6;
                 velocityY = 0;
-            } else {
-                velocityY -= 0.019 * frameScale;
-                playerPos.y += velocityY * frameScale;
-                if (velocityY <= 0 && playerPos.y <= targetPlayerY + 0.12) {
-                    playerPos.y = targetPlayerY;
-                    velocityY = 0;
-                    isGrounded = true;
-                } else if (playerPos.y <= 1.6) {
-                    playerPos.y = 1.6;
-                    velocityY = 0;
-                    isGrounded = true;
-                }
+                isGrounded = true;
             }
 
             if (isFiring && !isReloading) {
