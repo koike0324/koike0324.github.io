@@ -496,6 +496,40 @@
             insideFloor.rotation.x=-Math.PI/2;
             insideFloor.position.set(x,0.035,z);
             scene.add(insideFloor);
+
+            // 2階以上の室内フロアと階段を追加（建物ごとに階数を変える）
+            const floorLevels = [];
+            const levelCount = Math.max(2, Math.min(5, Math.floor(h / 7)));
+            const upperFloorMat = new THREE.MeshStandardMaterial({color:0x918b80,roughness:0.92,side:THREE.DoubleSide});
+            const stairMat = new THREE.MeshStandardMaterial({color:0x68645e,roughness:0.9});
+            for(let level=1; level<levelCount; level++) {
+                const levelY = Math.min(h-3, level*4.2);
+                floorLevels.push(levelY);
+                const upperFloor = new THREE.Mesh(
+                    new THREE.BoxGeometry(w-wall*2,0.22,d-wall*2),
+                    upperFloorMat
+                );
+                upperFloor.position.set(x,levelY,z);
+                upperFloor.receiveShadow = true;
+                scene.add(upperFloor);
+
+                // 各階をつなぐ階段（見た目用）
+                const stairWidth = Math.min(2.4,w*0.28);
+                const stairLength = Math.min(5.2,d*0.55);
+                const steps = 8;
+                for(let step=0; step<steps; step++) {
+                    const tread = new THREE.Mesh(
+                        new THREE.BoxGeometry(stairWidth,0.18,stairLength/steps),
+                        stairMat
+                    );
+                    tread.position.set(
+                        x-w*0.22,
+                        (levelY-4.2)+((step+0.5)/steps)*4.2,
+                        z-d*0.22+(step+0.5)*(stairLength/steps)
+                    );
+                    scene.add(tread);
+                }
+            }
             const doorFrameMat = new THREE.MeshStandardMaterial({color:0x343b42,metalness:0.45,roughness:0.55});
             for(const side of [-1,1]) {
                 const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18,doorH,0.2),doorFrameMat);
@@ -546,6 +580,38 @@
         roadZ.rotation.x=-Math.PI/2; roadZ.position.set(98,0.045,-92); scene.add(roadZ);
         const roadMark = new THREE.Mesh(new THREE.PlaneGeometry(0.35,130),roadLineMat);
         roadMark.rotation.x=-Math.PI/2; roadMark.position.set(98,0.06,-92); scene.add(roadMark);
+
+        // 立体交差：中央交差点の上を通る高架歩道・道路
+        const overpassMat = new THREE.MeshStandardMaterial({color:0x555d65,roughness:0.88});
+        const overpassEdgeMat = new THREE.MeshStandardMaterial({color:0x343b42,roughness:0.82});
+        const supportMat = new THREE.MeshStandardMaterial({color:0x777f86,roughness:0.9});
+        const overpassDeck = new THREE.Mesh(new THREE.BoxGeometry(9,0.7,30),overpassMat);
+        overpassDeck.position.set(98,6.2,-92);
+        overpassDeck.receiveShadow = true;
+        overpassDeck.castShadow = true;
+        scene.add(overpassDeck);
+        // 高架の両側に傾斜路をつなげる
+        for(const side of [-1,1]) {
+            const ramp = new THREE.Mesh(new THREE.BoxGeometry(9,0.55,34),overpassMat);
+            ramp.position.set(98,3.0,-92+side*32);
+            ramp.rotation.x = side*0.18;
+            ramp.receiveShadow = true;
+            scene.add(ramp);
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.22,1.0,30),overpassEdgeMat);
+            rail.position.set(93.5,6.95,-92);
+            scene.add(rail);
+            const rail2 = rail.clone();
+            rail2.position.x = 102.5;
+            scene.add(rail2);
+        }
+        for(const z of [-103,-92,-81]) {
+            for(const x of [94,102]) {
+                const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.9,6,0.9),supportMat);
+                pillar.position.set(x,3,z);
+                scene.add(pillar);
+                colliders.push({minX:x-0.45,maxX:x+0.45,minZ:z-0.45,maxZ:z+0.45,width:0.9,depth:0.9,height:6});
+            }
+        }
         const cityBuildings = [
             [55,-53,15,15,24],[80,-53,18,16,38],[112,-53,20,16,29],[140,-53,14,16,20],
             [55,-82,15,18,32],[112,-82,20,18,48],[140,-82,14,18,27],
