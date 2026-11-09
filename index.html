@@ -861,8 +861,17 @@
 
         // iPadでも開始時に地面と建物が確実に視界へ入るよう、初期視点を下向きにする
         let yaw = 0, pitch = -0.35, velocityY = 0, isGrounded = true;
-        let moveF = 0, moveR = 0;
+        let moveF = 0, moveR = 0, currentSupportY = 0;
         const playerPos = new THREE.Vector3(0, 1.6, 10);
+        function tryJump() {
+            const standingY = currentSupportY + 1.6;
+            // 接地フラグが一瞬ずれても、足場の高さに立っていればジャンプ可能
+            const standingOnSurface = Math.abs(playerPos.y - standingY) < 0.22;
+            if (isGrounded || standingOnSurface) {
+                velocityY = 0.48;
+                isGrounded = false;
+            }
+        }
         const MOVE_SPEED = 0.15;
         const PLAYER_RADIUS = 0.5;
 
@@ -948,12 +957,9 @@
         });
         window.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
-            if (e.key === ' ') {
+            if (e.code === 'Space' || e.key === ' ') {
                 e.preventDefault();
-                if (isGrounded) {
-                    velocityY = 0.36;
-                    isGrounded = false;
-                }
+                if (!e.repeat) tryJump();
             }
             if (e.key.toLowerCase() === 'r') {
                 e.preventDefault();
@@ -1288,10 +1294,7 @@
 
         document.getElementById('jump-button').addEventListener('pointerdown', e => {
             e.preventDefault();
-            if (isGrounded) {
-                velocityY = 0.36;
-                isGrounded = false;
-            }
+            tryJump();
         });
         document.getElementById('weapon-swap-button').addEventListener('pointerdown', e => {
             e.preventDefault();
@@ -1459,6 +1462,7 @@
                     supportY = Math.max(supportY,platform.height);
                 }
             }
+            currentSupportY = supportY;
             const targetPlayerY = supportY + 1.6;
             // 接地中は坂や階段の高さに追従。ジャンプ中は上昇を妨げず、
             // 落下して足場の高さまで戻ったときだけ着地させる。
