@@ -1460,14 +1460,19 @@
                 }
             }
             const targetPlayerY = supportY + 1.6;
-            if(playerPos.y > targetPlayerY || (supportY > 0 && playerPos.y < targetPlayerY+0.25)) {
+            // 接地中は坂や階段の高さに追従。ジャンプ中は上昇を妨げず、
+            // 落下して足場の高さまで戻ったときだけ着地させる。
+            if (isGrounded) {
                 playerPos.y = targetPlayerY;
                 velocityY = 0;
-                isGrounded = true;
             } else {
                 velocityY -= 0.019 * frameScale;
                 playerPos.y += velocityY * frameScale;
-                if (playerPos.y <= 1.6) {
+                if (velocityY <= 0 && playerPos.y <= targetPlayerY + 0.12) {
+                    playerPos.y = targetPlayerY;
+                    velocityY = 0;
+                    isGrounded = true;
+                } else if (playerPos.y <= 1.6) {
                     playerPos.y = 1.6;
                     velocityY = 0;
                     isGrounded = true;
