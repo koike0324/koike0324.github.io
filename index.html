@@ -845,10 +845,10 @@
 
         // 武器ごとの役割がはっきりするように性能を再調整
         const weapons = {
-            pistol:  { maxAmmo: 12, reloadTime: 1.05, damage: 22, fireRate: 0.28, spreadAngle: 0.012, aimSpread: 0.006, range: 55, isAutomatic: false },
-            rifle:   { maxAmmo: 30, reloadTime: 1.55, damage: 13, fireRate: 0.105, spreadAngle: 0.018, aimSpread: 0.009, range: 85, isAutomatic: true },
-            sniper:  { maxAmmo: 5, reloadTime: 2.15, damage: 80, fireRate: 1.15, spreadAngle: 0.003, aimSpread: 0.0005, range: 180, isAutomatic: false },
-            shotgun: { maxAmmo: 6, reloadTime: 1.8, damage: 42, fireRate: 0.72, spreadAngle: 0.055, aimSpread: 0.04, range: 24, isAutomatic: false }
+            pistol:  { maxAmmo: 12, reloadTime: 1.05, damage: 15, fireRate: 0.28, spreadAngle: 0.012, aimSpread: 0.006, range: 55, isAutomatic: false },
+            rifle:   { maxAmmo: 30, reloadTime: 1.55, damage: 9, fireRate: 0.105, spreadAngle: 0.018, aimSpread: 0.009, range: 85, isAutomatic: true },
+            sniper:  { maxAmmo: 5, reloadTime: 2.15, damage: 56, fireRate: 1.15, spreadAngle: 0.003, aimSpread: 0.0005, range: 180, isAutomatic: false },
+            shotgun: { maxAmmo: 6, reloadTime: 1.8, damage: 29, fireRate: 0.72, spreadAngle: 0.055, aimSpread: 0.04, range: 24, isAutomatic: false }
         };
 
         let currentWeapon = 'pistol';
@@ -1357,7 +1357,7 @@
             // 頭部命中は威力アップ。ショットガンは近距離で強く、距離が離れると威力低下
             let actualDamage = weapon.damage;
             if (currentWeapon === 'shotgun' && hit.distance > 10) {
-                actualDamage = Math.max(16, Math.round(weapon.damage * (1 - (hit.distance - 10) / 18)));
+                actualDamage = Math.max(11, Math.round(weapon.damage * (1 - (hit.distance - 10) / 18)));
             }
             if (hit.object === dummy.head) actualDamage = Math.min(100, Math.round(actualDamage * 1.5));
             dummy.health -= actualDamage;
