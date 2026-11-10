@@ -788,9 +788,9 @@
         // エリア中央を基準に、障害物に重ならない最も近い地点を探す
         function findAreaCenterSpawn(area, margin = 1.2) {
             const b = AREA_BOUNDS[area];
-            // 平原はスクリーンショットで示された中央の遮蔽物エリア付近を基準にする
-            const centerX = area === 'plains' ? 39 : b.centerX;
-            const centerZ = area === 'plains' ? -22 : b.centerZ;
+            // 各エリアの中心をダミーの出現基準地点にする
+            const centerX = b.centerX;
+            const centerZ = b.centerZ;
             for (let radius = 0; radius <= 28; radius += 2) {
                 for (let dx = -radius; dx <= radius; dx += 2) {
                     for (const dz of (radius === 0 ? [0] : [-radius, radius])) {
