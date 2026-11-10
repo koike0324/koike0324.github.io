@@ -1292,6 +1292,24 @@
             animate();
         }
 
+        function createBulletTrail(start, end, color = 0xffe08a) {
+            const geometry = new THREE.BufferGeometry().setFromPoints([start.clone(), end.clone()]);
+            const material = new THREE.LineBasicMaterial({
+                color,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false
+            });
+            const trail = new THREE.Line(geometry, material);
+            trail.renderOrder = 30;
+            scene.add(trail);
+            setTimeout(() => {
+                scene.remove(trail);
+                geometry.dispose();
+                material.dispose();
+            }, 110);
+        }
+
         function shoot() {
             if (isPaused) return;
             const weapon = weapons[currentWeapon];
@@ -1304,17 +1322,6 @@
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapon.maxAmmo}`;
             gunGroup.position.z += 0.22;
 
-            // 武器ごとの射程と拡散を反映。照準中は弾のばらつきを抑える
-            const spread = isAiming ? weapon.aimSpread : weapon.spreadAngle;
-            const shotX = (Math.random() - 0.5) * spread * 2;
-            const shotY = (Math.random() - 0.5) * spread * 2;
-            ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-            const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-            ray.ray.direction.addScaledVector(right, shotX).addScaledVector(up, shotY).normalize();
-            ray.far = weapon.range;
-
-            // 壁・ターゲット・生存中の敵を同じレイで調べ、最も近い交差だけを処理する
             const blockers = scene.children.filter(object => object.userData.blocksShots);
             const targetMeshes = targets.filter(target => target.scale.x !== 0);
             const dummyMeshes = [];
@@ -1324,50 +1331,70 @@
                     dummyMeshes.push(mesh);
                 }
             }
-
-            // 念のため未定義・非Meshを除外し、無効な候補で射撃処理が停止しないようにする
             const candidates = [...blockers, ...targetMeshes, ...dummyMeshes]
                 .filter(object => object && object.isObject3D && typeof object.raycast === 'function');
-            // 敵の各部位は直接Meshを渡して判定する
-            const hits = ray.intersectObjects(candidates, false);
-            if (hits.length === 0) return;
 
-            const hit = hits[0];
-            // 最初に当たったのが壁・箱なら、後ろの敵やターゲットには命中させない
-            if (hit.object.userData.blocksShots) return;
+            const isShotgun = currentWeapon === 'shotgun';
+            const pelletCount = isShotgun ? 7 : 1;
+            const start = camera.getWorldPosition(new THREE.Vector3());
+            const spread = (isAiming ? weapon.aimSpread : weapon.spreadAngle) * (isShotgun ? 2.4 : 1);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+            const pelletDamage = isShotgun ? Math.max(1, Math.round(weapon.damage / pelletCount)) : weapon.damage;
+            const damagedDummies = new Map();
+            let targetHit = false;
 
-            if (targets.includes(hit.object)) {
-                const target = hit.object;
-                target.scale.set(0, 0, 0);
-                showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
-                setTimeout(() => {
-                    target.scale.set(1, 1, 1);
-                    const pos = findOpenPosition(2);
-                    target.position.set(pos.x, 2 + Math.random() * 4, pos.z);
-                }, 2000);
-                return;
+            for (let pellet = 0; pellet < pelletCount; pellet++) {
+                ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const shotX = (Math.random() - 0.5) * spread * 2;
+                const shotY = (Math.random() - 0.5) * spread * 2;
+                ray.ray.direction.addScaledVector(right, shotX).addScaledVector(up, shotY).normalize();
+                ray.far = weapon.range;
+
+                const hits = ray.intersectObjects(candidates, false);
+                const hit = hits.length ? hits[0] : null;
+                const end = hit ? hit.point.clone() : start.clone().add(ray.ray.direction.clone().multiplyScalar(weapon.range));
+                createBulletTrail(start, end, isShotgun ? 0xffd27a : 0xfff0b0);
+
+                if (!hit || hit.object.userData.blocksShots) continue;
+
+                if (targets.includes(hit.object)) {
+                    if (!targetHit) {
+                        const target = hit.object;
+                        target.scale.set(0, 0, 0);
+                        targetHit = true;
+                        setTimeout(() => {
+                            target.scale.set(1, 1, 1);
+                            const pos = findOpenPosition(2);
+                            target.position.set(pos.x, 2 + Math.random() * 4, pos.z);
+                        }, 2000);
+                    }
+                    continue;
+                }
+
+                const dummy = dummies.find(item =>
+                    item.isAlive &&
+                    [item.body, item.head, item.leftArm, item.rightArm, item.leftLeg, item.rightLeg].includes(hit.object)
+                );
+                if (!dummy) continue;
+
+                let actualDamage = pelletDamage;
+                if (isShotgun && hit.distance > 10) {
+                    actualDamage = Math.max(1, Math.round(pelletDamage * (1 - (hit.distance - 10) / 18)));
+                }
+                if (hit.object === dummy.head) actualDamage = Math.min(100, Math.round(actualDamage * 1.5));
+                dummy.health -= actualDamage;
+                dummy.hitFlashTimer = dummy.hitFlashDuration;
+                damagedDummies.set(dummy, (damagedDummies.get(dummy) || 0) + actualDamage);
             }
 
-            const dummy = dummies.find(item =>
-                item.isAlive &&
-                [item.body, item.head, item.leftArm, item.rightArm, item.leftLeg, item.rightLeg].includes(hit.object)
-            );
-            if (!dummy) return;
-
-            // 頭部命中は威力アップ。ショットガンは近距離で強く、距離が離れると威力低下
-            let actualDamage = weapon.damage;
-            if (currentWeapon === 'shotgun' && hit.distance > 10) {
-                actualDamage = Math.max(11, Math.round(weapon.damage * (1 - (hit.distance - 10) / 18)));
-            }
-            if (hit.object === dummy.head) actualDamage = Math.min(100, Math.round(actualDamage * 1.5));
-            dummy.health -= actualDamage;
-            dummy.hitFlashTimer = dummy.hitFlashDuration;
-            showDamageIndicator(actualDamage, window.innerWidth / 2, window.innerHeight / 2 - 50);
-
-            if (dummy.health <= 0 && dummy.isAlive) {
-                dummy.isAlive = false;
-                dummy.respawnTimer = 3.0;
-                dummy.group.visible = false;
+            for (const [dummy, totalDamage] of damagedDummies) {
+                showDamageIndicator(totalDamage, window.innerWidth / 2, window.innerHeight / 2 - 50);
+                if (dummy.health <= 0 && dummy.isAlive) {
+                    dummy.isAlive = false;
+                    dummy.respawnTimer = 3.0;
+                    dummy.group.visible = false;
+                }
             }
         }
 
