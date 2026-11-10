@@ -165,6 +165,13 @@
             border-radius:9px; background:#a83232; color:#fff; font-size:15px; font-weight:800;
         }
         #pause-message { min-height:18px; margin:0 0 12px; color:#ffb4b4; font-size:13px; font-weight:700; }
+        #you-died-overlay {
+            position:fixed; inset:0; z-index:2147483646; display:none;
+            align-items:center; justify-content:center; background:rgba(0,0,0,.58);
+            color:#ff3434; font-size:clamp(34px,8vw,68px); font-weight:1000;
+            letter-spacing:4px; text-shadow:0 3px 12px #000, 0 0 24px rgba(255,0,0,.55);
+            pointer-events:none;
+        }
         #health-hud {
             position: fixed !important; display: block !important; visibility: visible !important;
             opacity: 1 !important; z-index: 99999 !important;
@@ -305,6 +312,8 @@
             <button id="pause-reset" type="button">リセット（死亡して復帰）</button>
         </div>
     </div>
+
+    <div id="you-died-overlay" role="alert" aria-live="assertive">YOU DIED</div>
 
     <div id="ui-layer">
         <div id="crosshair"></div>
@@ -1565,20 +1574,23 @@
         document.getElementById('pause-reset').addEventListener('click', () => {
             if (!gameStarted || !isPaused) return;
             const resetButton = document.getElementById('pause-reset');
-            const pauseMessage = document.getElementById('pause-message');
+            const deathOverlay = document.getElementById('you-died-overlay');
             resetButton.disabled = true;
             resetButton.textContent = '復帰中...';
-            pauseMessage.textContent = 'YOU DIED';
             playerHP = 0;
             updatePlayerHealthUI();
             clearInputState();
+            // ポーズ画面を閉じてから、ゲーム画面中央にYOU DIEDを表示
+            pauseOverlay.style.display = 'none';
+            deathOverlay.style.display = 'flex';
+            if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
             setTimeout(() => {
                 respawnPlayer(true);
-                pauseMessage.textContent = '';
+                deathOverlay.style.display = 'none';
                 resetButton.disabled = false;
                 resetButton.textContent = 'リセット（死亡して復帰）';
                 setPaused(false);
-            }, 800);
+            }, 1400);
         });
 
         const spawnOptionButtons = [...document.querySelectorAll('.spawn-option')];
