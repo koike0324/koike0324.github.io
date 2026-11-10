@@ -164,6 +164,10 @@
             width:100%; margin-top:10px; padding:12px; border:1px solid rgba(255,255,255,.2);
             border-radius:9px; background:#a83232; color:#fff; font-size:15px; font-weight:800;
         }
+        #dummy-retaliation-toggle {
+            width:100%; margin:0 0 10px; padding:11px; border:1px solid rgba(255,255,255,.25);
+            border-radius:9px; background:#245b83; color:#fff; font-size:14px; font-weight:800;
+        }
         #pause-message { min-height:18px; margin:0 0 12px; color:#ffb4b4; font-size:13px; font-weight:700; }
         #you-died-overlay {
             position:fixed; inset:0; z-index:2147483646; display:none;
@@ -310,6 +314,7 @@
         <div id="pause-panel">
             <h2 id="pause-title">PAUSED</h2>
             <p id="pause-message" aria-live="polite"></p>
+            <button id="dummy-retaliation-toggle" type="button" aria-pressed="true">ダミーの反撃：ON</button>
             <button id="pause-resume" type="button">ゲームに戻る</button>
             <button id="pause-reset" type="button">リセット（死亡して復帰）</button>
         </div>
@@ -763,7 +768,8 @@
                 isAlive: true,
                 hitFlashTimer: 0,
                 hitFlashDuration: 0.15,
-                originalBodyColor: 0x4488ff
+                originalBodyColor: 0x4488ff,
+                attackTimer: 1.5 + Math.random() * 2
             };
         }
 
@@ -1466,6 +1472,7 @@
             const spawn = getSpawnPosition(activeSpawnArea);
             playerPos.set(spawn.x, 1.6, spawn.z);
             playerHP = MAX_PLAYER_HP;
+            playerDeathPending = false;
             updatePlayerHealthUI();
             velocityY = 0;
             isGrounded = true;
@@ -1493,6 +1500,28 @@
                         dummy.respawnTimer = 0;
                     }
                     continue;
+                }
+
+                // プレイヤーが近いときだけ、低頻度・少量の反撃を行う
+                if (dummyRetaliationEnabled && !playerDeathPending) {
+                    dummy.attackTimer -= delta;
+                    const dx = playerPos.x - dummy.group.position.x;
+                    const dz = playerPos.z - dummy.group.position.z;
+                    if (dx * dx + dz * dz <= 18 * 18 && dummy.attackTimer <= 0) {
+                        playerHP = Math.max(0, playerHP - 3);
+                        updatePlayerHealthUI();
+                        dummy.attackTimer = 4.5;
+                        if (playerHP <= 0 && !playerDeathPending) {
+                            playerDeathPending = true;
+                            clearInputState();
+                            const deathOverlay = document.getElementById('you-died-overlay');
+                            deathOverlay.style.display = 'flex';
+                            setTimeout(() => {
+                                respawnPlayer(false);
+                                deathOverlay.style.display = 'none';
+                            }, 1400);
+                        }
+                    }
                 }
 
                 dummy.wanderTimer += delta;
@@ -1578,7 +1607,20 @@
         const clock = new THREE.Clock();
         let gameStarted = false;
         let isPaused = false;
+        let dummyRetaliationEnabled = true;
+        let playerDeathPending = false;
         const pauseOverlay = document.getElementById('pause-overlay');
+        const dummyRetaliationButton = document.getElementById('dummy-retaliation-toggle');
+        function updateDummyRetaliationButton() {
+            dummyRetaliationButton.textContent = 'ダミーの反撃：' + (dummyRetaliationEnabled ? 'ON' : 'OFF');
+            dummyRetaliationButton.setAttribute('aria-pressed', String(dummyRetaliationEnabled));
+            dummyRetaliationButton.style.background = dummyRetaliationEnabled ? '#245b83' : '#555';
+        }
+        dummyRetaliationButton.addEventListener('click', () => {
+            dummyRetaliationEnabled = !dummyRetaliationEnabled;
+            updateDummyRetaliationButton();
+        });
+        updateDummyRetaliationButton();
         function setPaused(value) {
             if (!gameStarted) return;
             isPaused = Boolean(value);
