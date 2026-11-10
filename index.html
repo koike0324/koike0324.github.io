@@ -92,6 +92,20 @@
             width: 18px; height: 2px;
         }
 
+        #shotgun-reticle {
+            display:none; position:absolute; left:50%; top:50%;
+            width:54px; height:54px; box-sizing:border-box;
+            transform:translate(-50%,-50%);
+            border:1px solid rgba(255,255,255,.85); border-radius:50%;
+            box-shadow:0 0 3px rgba(0,0,0,.9), inset 0 0 3px rgba(0,0,0,.5);
+            pointer-events:none; z-index:2;
+        }
+        #shotgun-reticle::before, #shotgun-reticle::after {
+            content:""; position:absolute; background:rgba(255,255,255,.95);
+            box-shadow:0 0 3px rgba(0,0,0,.9);
+        }
+        #shotgun-reticle::before { width:1px; height:7px; left:50%; top:-5px; }
+        #shotgun-reticle::after { width:7px; height:1px; left:-5px; top:50%; }
         .btn {
             position: absolute; z-index: 20; pointer-events: auto; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -324,6 +338,7 @@
 
     <div id="ui-layer">
         <div id="crosshair"></div>
+        <div id="shotgun-reticle" aria-hidden="true"></div>
         <div id="ammo-display">15 / 15</div>
         <div id="weapon-display">PISTOL</div>
         <button id="pause-open-button" type="button" aria-label="ポーズメニューを開く">Ⅱ PAUSE</button>
@@ -856,6 +871,15 @@
         let isAiming = false;
         const adsButton = document.getElementById('ads-button');
         const scopeOverlay = document.getElementById('scope-overlay');
+        function updateShotgunReticle() {
+            const reticle = document.getElementById('shotgun-reticle');
+            if (!reticle) return;
+            const visible = currentWeapon === 'shotgun' && !(isAiming && currentWeapon === 'sniper');
+            reticle.style.display = visible ? 'block' : 'none';
+            reticle.style.width = isAiming ? '34px' : '54px';
+            reticle.style.height = isAiming ? '34px' : '54px';
+        }
+
         function setAiming(value) {
             isAiming = Boolean(value);
             adsButton.classList.toggle('enabled', isAiming);
@@ -865,6 +889,7 @@
             scopeOverlay.style.display = sniperScopeActive ? 'block' : 'none';
             if (typeof gunGroup !== 'undefined') gunGroup.visible = !sniperScopeActive;
             document.getElementById('crosshair').style.opacity = isAiming ? '0' : '1';
+            updateShotgunReticle();
         }
         adsButton.addEventListener('pointerdown', e => { e.preventDefault(); setAiming(!isAiming); });
         document.addEventListener('pointerdown', e => { if (e.button === 2 && !isMobile) setAiming(true); });
@@ -1421,6 +1446,7 @@
             gunGroup.position.y = 0;
             gunGroup.position.z = 0;
 
+            updateShotgunReticle();
             document.getElementById('weapon-display').innerText = currentWeapon.toUpperCase();
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapons[currentWeapon].maxAmmo}`;
             createGunModel(currentWeapon);
