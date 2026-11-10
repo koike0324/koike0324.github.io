@@ -361,6 +361,11 @@
         renderer.setSize(initialSize.width, initialSize.height, false);
         document.body.appendChild(renderer.domElement);
 
+        // HP表示をcanvas生成後にbody末尾へ移し、PC・スマホ両方で最前面に固定
+        const healthHud = document.getElementById('health-hud');
+        document.body.appendChild(healthHud);
+        healthHud.style.cssText += ';position:fixed!important;display:block!important;visibility:visible!important;opacity:1!important;z-index:2147483647!important;left:50%!important;right:auto!important;top:auto!important;bottom:18px!important;transform:translateX(-50%)!important;width: min(300px, 46vw)!important;min-width:190px!important;pointer-events:none!important;';
+        
         const light = new THREE.HemisphereLight(0xffffff, 0x80bb88, 2);
         scene.add(light);
 
