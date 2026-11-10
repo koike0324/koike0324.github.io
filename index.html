@@ -1296,11 +1296,11 @@
             const direction = end.clone().sub(start);
             const length = direction.length();
             if (length < 0.15) return;
-            const geometry = new THREE.CylinderGeometry(0.11, 0.11, length, 8, 1, false);
+            const geometry = new THREE.CylinderGeometry(0.018, 0.018, length, 6, 1, false);
             const material = new THREE.MeshBasicMaterial({
                 color,
                 transparent: true,
-                opacity: 1,
+                opacity: 0.78,
                 depthTest: false,
                 depthWrite: false,
                 side: THREE.DoubleSide,
@@ -1316,7 +1316,7 @@
                 scene.remove(trail);
                 geometry.dispose();
                 material.dispose();
-            }, 450);
+            }, 180);
         }
 
         function shoot() {
