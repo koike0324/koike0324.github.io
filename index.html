@@ -136,6 +136,23 @@
 
         #ammo-display { position: absolute; top: 20px; left: 20px; font-size: 28px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
         #weapon-display { position: absolute; top: 60px; left: 20px; font-size: 16px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+        #health-hud {
+            position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+            width: min(280px, 42vw); padding: 9px 13px 10px; box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,.45); border-radius: 10px;
+            background: rgba(8,15,22,.72); color: #fff; text-shadow: 0 1px 3px #000;
+            pointer-events: none; backdrop-filter: blur(4px);
+        }
+        #health-label-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:12px; font-weight:800; letter-spacing:1px; }
+        #health-value { font-size:13px; font-variant-numeric:tabular-nums; }
+        #health-bar-bg { height:11px; overflow:hidden; border-radius:8px; background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.22); }
+        #health-bar-fill { width:100%; height:100%; border-radius:8px; background:linear-gradient(90deg,#22c55e,#84cc16); transition:width .18s ease,background .18s ease; }
+        @media (max-width:700px) {
+            #health-hud { bottom: max(12px, env(safe-area-inset-bottom)); width:min(220px,38vw); padding:7px 9px 8px; }
+            #health-label-row { margin-bottom:4px; font-size:10px; }
+            #health-value { font-size:11px; }
+            #health-bar-bg { height:9px; }
+        }
         #aim-toggle {
             position: absolute; top: 190px; right: 20px; left: auto; z-index: 20;
             pointer-events: auto; cursor: pointer;
@@ -249,6 +266,10 @@
         <div id="crosshair"></div>
         <div id="ammo-display">15 / 15</div>
         <div id="weapon-display">PISTOL</div>
+        <div id="health-hud" role="status" aria-label="プレイヤー体力">
+            <div id="health-label-row"><span>HP</span><span id="health-value">100 / 100</span></div>
+            <div id="health-bar-bg"><div id="health-bar-fill"></div></div>
+        </div>
         <button id="aim-toggle" type="button" aria-pressed="false">AUTO AIM: OFF</button>
         <button id="ads-button" type="button" aria-pressed="false">AIM: OFF</button>
         <div id="scope-overlay" aria-hidden="true"></div>
@@ -832,6 +853,21 @@
         const playerPos = new THREE.Vector3(0, 1.6, 10);
         const MOVE_SPEED = 0.15;
         const PLAYER_RADIUS = 0.5;
+        const MAX_PLAYER_HP = 100;
+        let playerHP = MAX_PLAYER_HP;
+        const healthValueEl = document.getElementById('health-value');
+        const healthBarFillEl = document.getElementById('health-bar-fill');
+        function updatePlayerHealthUI() {
+            const hp = Math.max(0, Math.min(MAX_PLAYER_HP, playerHP));
+            const percent = hp / MAX_PLAYER_HP * 100;
+            healthValueEl.textContent = String(hp) + ' / ' + MAX_PLAYER_HP;
+            healthBarFillEl.style.width = String(percent) + '%';
+            healthBarFillEl.style.background = hp > 50
+                ? 'linear-gradient(90deg,#22c55e,#84cc16)'
+                : hp > 25 ? 'linear-gradient(90deg,#eab308,#f59e0b)'
+                : 'linear-gradient(90deg,#ef4444,#dc2626)';
+        }
+        updatePlayerHealthUI();
         let selectedSpawnArea = 'plains';
         let activeSpawnArea = 'plains';
 
@@ -1311,6 +1347,8 @@
             }
             const spawn = getSpawnPosition(activeSpawnArea);
             playerPos.set(spawn.x, 1.6, spawn.z);
+            playerHP = MAX_PLAYER_HP;
+            updatePlayerHealthUI();
             velocityY = 0;
             isGrounded = true;
             yaw = 0;
