@@ -833,11 +833,12 @@
             targets.push(t);
         }
 
+        // 武器ごとの役割がはっきりするように性能を再調整
         const weapons = {
-            pistol: { maxAmmo: 15, reloadTime: 0.85, damage: 1, fireRate: 0.12, spreadAngle: 0.02, isAutomatic: true },
-            rifle: { maxAmmo: 30, reloadTime: 1.2, damage: 2, fireRate: 0.08, spreadAngle: 0.01, isAutomatic: true },
-            sniper: { maxAmmo: 5, reloadTime: 1.8, damage: 5, fireRate: 0.9, spreadAngle: 0.002, isAutomatic: false },
-            shotgun: { maxAmmo: 8, reloadTime: 1.5, damage: 3, fireRate: 0.6, spreadAngle: 0.1, isAutomatic: false }
+            pistol:  { maxAmmo: 12, reloadTime: 1.05, damage: 22, fireRate: 0.28, spreadAngle: 0.012, aimSpread: 0.006, range: 55, isAutomatic: false },
+            rifle:   { maxAmmo: 30, reloadTime: 1.55, damage: 13, fireRate: 0.105, spreadAngle: 0.018, aimSpread: 0.009, range: 85, isAutomatic: true },
+            sniper:  { maxAmmo: 5, reloadTime: 2.15, damage: 80, fireRate: 1.15, spreadAngle: 0.003, aimSpread: 0.0005, range: 180, isAutomatic: false },
+            shotgun: { maxAmmo: 6, reloadTime: 1.8, damage: 42, fireRate: 0.72, spreadAngle: 0.055, aimSpread: 0.04, range: 24, isAutomatic: false }
         };
 
         let currentWeapon = 'pistol';
@@ -1293,7 +1294,15 @@
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapon.maxAmmo}`;
             gunGroup.position.z += 0.22;
 
+            // 武器ごとの射程と拡散を反映。照準中は弾のばらつきを抑える
+            const spread = isAiming ? weapon.aimSpread : weapon.spreadAngle;
+            const shotX = (Math.random() - 0.5) * spread * 2;
+            const shotY = (Math.random() - 0.5) * spread * 2;
             ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+            ray.ray.direction.addScaledVector(right, shotX).addScaledVector(up, shotY).normalize();
+            ray.far = weapon.range;
 
             // 壁・ターゲット・生存中の敵を同じレイで調べ、最も近い交差だけを処理する
             const blockers = scene.children.filter(object => object.userData.blocksShots);
@@ -1335,9 +1344,15 @@
             );
             if (!dummy) return;
 
-            dummy.health -= weapon.damage;
+            // 頭部命中は威力アップ。ショットガンは近距離で強く、距離が離れると威力低下
+            let actualDamage = weapon.damage;
+            if (currentWeapon === 'shotgun' && hit.distance > 10) {
+                actualDamage = Math.max(16, Math.round(weapon.damage * (1 - (hit.distance - 10) / 18)));
+            }
+            if (hit.object === dummy.head) actualDamage = Math.min(100, Math.round(actualDamage * 1.5));
+            dummy.health -= actualDamage;
             dummy.hitFlashTimer = dummy.hitFlashDuration;
-            showDamageIndicator(weapon.damage, window.innerWidth / 2, window.innerHeight / 2 - 50);
+            showDamageIndicator(actualDamage, window.innerWidth / 2, window.innerHeight / 2 - 50);
 
             if (dummy.health <= 0) {
                 dummy.isAlive = false;
@@ -1699,7 +1714,7 @@
             }
 
             // 覗き込み時は武器を中央へ寄せ、武器ごとにズーム量を変える
-            const aimFov = { pistol: 52, rifle: 43, sniper: 18, shotgun: 48 }[currentWeapon];
+            const aimFov = { pistol: 58, rifle: 46, sniper: 20, shotgun: 58 }[currentWeapon];
             const desiredFov = isAiming ? aimFov : 75;
             camera.fov += (desiredFov - camera.fov) * Math.min(1, delta * 10);
             camera.updateProjectionMatrix();
