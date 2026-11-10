@@ -94,12 +94,13 @@
 
         #shotgun-reticle {
             display:none; position:absolute; left:50%; top:50%;
-            width:54px; height:54px; box-sizing:border-box;
+            width:68px; height:68px; box-sizing:border-box;
             transform:translate(-50%,-50%);
-            border:1px solid rgba(255,255,255,.85); border-radius:50%;
-            box-shadow:0 0 3px rgba(0,0,0,.9), inset 0 0 3px rgba(0,0,0,.5);
-            pointer-events:none; z-index:2;
+            border:2px dashed rgba(255,255,255,.98); border-radius:50%;
+            filter:drop-shadow(0 0 2px #000);
+            pointer-events:none; z-index:999;
         }
+        body.shotgun-equipped #shotgun-reticle { display:block !important; }
         #shotgun-reticle::before, #shotgun-reticle::after {
             content:""; position:absolute; background:rgba(255,255,255,.95);
             box-shadow:0 0 3px rgba(0,0,0,.9);
@@ -875,9 +876,9 @@
             const reticle = document.getElementById('shotgun-reticle');
             if (!reticle) return;
             const visible = currentWeapon === 'shotgun' && !(isAiming && currentWeapon === 'sniper');
-            reticle.style.display = visible ? 'block' : 'none';
-            reticle.style.width = isAiming ? '34px' : '54px';
-            reticle.style.height = isAiming ? '34px' : '54px';
+            document.body.classList.toggle('shotgun-equipped', visible);
+            reticle.style.width = isAiming ? '42px' : '68px';
+            reticle.style.height = isAiming ? '42px' : '68px';
         }
 
         function setAiming(value) {
