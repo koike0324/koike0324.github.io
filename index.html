@@ -848,7 +848,7 @@
             pistol:  { maxAmmo: 12, reloadTime: 1.05, damage: 15, fireRate: 0.28, spreadAngle: 0.012, aimSpread: 0.006, range: 55, isAutomatic: false },
             rifle:   { maxAmmo: 30, reloadTime: 1.55, damage: 9, fireRate: 0.105, spreadAngle: 0.018, aimSpread: 0.009, range: 85, isAutomatic: true },
             sniper:  { maxAmmo: 5, reloadTime: 2.15, damage: 56, fireRate: 1.15, spreadAngle: 0.003, aimSpread: 0.0005, range: 180, isAutomatic: false },
-            shotgun: { maxAmmo: 6, reloadTime: 1.8, damage: 29, fireRate: 0.72, spreadAngle: 0.055, aimSpread: 0.04, range: 24, isAutomatic: false }
+            shotgun: { maxAmmo: 6, reloadTime: 1.8, damage: 29, fireRate: 0.72, spreadAngle: 0.028, aimSpread: 0.018, range: 24, isAutomatic: false }
         };
 
         let currentWeapon = 'pistol';
@@ -1346,7 +1346,7 @@
             const isShotgun = currentWeapon === 'shotgun';
             const pelletCount = isShotgun ? 7 : 1;
             const cameraOrigin = camera.getWorldPosition(new THREE.Vector3());
-            const spread = (isAiming ? weapon.aimSpread : weapon.spreadAngle) * (isShotgun ? 3.4 : 1);
+            const spread = (isAiming ? weapon.aimSpread : weapon.spreadAngle) * (isShotgun ? 1.6 : 1);
             const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
             const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
             const pelletDamage = isShotgun ? Math.max(1, Math.round(weapon.damage / pelletCount)) : weapon.damage;
