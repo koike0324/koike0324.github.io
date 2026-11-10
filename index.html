@@ -713,7 +713,14 @@
             };
         }
 
-        const DUMMY_BOUNDS = { minX: -175, maxX: 175, minZ: -180, maxZ: 60 };
+        // 3エリアの範囲。プレイヤーはこの外周を越えられない
+        const AREA_BOUNDS = {
+            plains: { minX: 17, maxX: 167, minZ: -83, maxZ: 67, centerX: 92, centerZ: -8 },
+            hills:  { minX: -177.5, maxX: -32.5, minZ: -167, maxZ: 3, centerX: -105, centerZ: -82 },
+            city:   { minX: 23, maxX: 173, minZ: -162, maxZ: -22, centerX: 98, centerZ: -92 }
+        };
+        const WORLD_BOUNDS = { minX: -177.5, maxX: 173, minZ: -167, maxZ: 67 };
+        const DUMMY_BOUNDS = WORLD_BOUNDS;
         function findOpenPosition(margin = 2, maxAttempts = 100) {
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
                 const x = DUMMY_BOUNDS.minX + Math.random() * (DUMMY_BOUNDS.maxX - DUMMY_BOUNDS.minX);
@@ -724,15 +731,40 @@
                 );
                 if (!blocked) return { x, z };
             }
-            // 配置が密な場合でも無限ループでゲーム起動を止めない
             return { x: 0, z: 0 };
         }
-
-        const dummies = [];
-        for (let i = 0; i < 3; i++) {
-            const pos = findOpenPosition(3);
-            dummies.push(createDummy(pos.x, pos.z));
+        // エリア中央を基準に、障害物に重ならない最も近い地点を探す
+        function findAreaCenterSpawn(area, margin = 1.2) {
+            const b = AREA_BOUNDS[area];
+            for (let radius = 0; radius <= 28; radius += 2) {
+                for (let dx = -radius; dx <= radius; dx += 2) {
+                    for (const dz of (radius === 0 ? [0] : [-radius, radius])) {
+                        const x = b.centerX + dx, z = b.centerZ + dz;
+                        if (x < b.minX + margin || x > b.maxX - margin || z < b.minZ + margin || z > b.maxZ - margin) continue;
+                        if (!checkCollision(x, z, margin)) return { x, z };
+                    }
+                }
+                for (let dz = -radius + 2; dz <= radius - 2; dz += 2) {
+                    for (const dx of [-radius, radius]) {
+                        const x = b.centerX + dx, z = b.centerZ + dz;
+                        if (x < b.minX + margin || x > b.maxX - margin || z < b.minZ + margin || z > b.maxZ - margin) continue;
+                        if (!checkCollision(x, z, margin)) return { x, z };
+                    }
+                }
+            }
+            return { x: b.centerX, z: b.centerZ };
         }
+
+        // 平原・丘・都会の中央に1体ずつ配置。倒されたら同じ中央付近へ復帰
+        const DUMMY_AREAS = ['plains', 'hills', 'city'];
+        const dummies = DUMMY_AREAS.map(area => {
+            const pos = findAreaCenterSpawn(area, 1.2);
+            const dummy = createDummy(pos.x, pos.z);
+            dummy.area = area;
+            dummy.spawnCenter = pos;
+            dummy.respawnTimer = 0;
+            return dummy;
+        });
 
         const targets = [];
         const tGeo = new THREE.IcosahedronGeometry(0.8, 0);
@@ -1253,6 +1285,7 @@
 
             if (dummy.health <= 0) {
                 dummy.isAlive = false;
+                dummy.respawnTimer = 3;
                 dummy.group.scale.set(0, 0, 0);
             }
         }
@@ -1371,7 +1404,20 @@
 
         function updateDummies(delta) {
             for (const dummy of dummies) {
-                if (!dummy.isAlive) continue;
+                if (!dummy.isAlive) {
+                    dummy.respawnTimer -= delta;
+                    if (dummy.respawnTimer <= 0) {
+                        const pos = findAreaCenterSpawn(dummy.area, 1.2);
+                        dummy.spawnCenter = pos;
+                        dummy.group.position.set(pos.x, 0, pos.z);
+                        dummy.group.scale.set(1, 1, 1);
+                        dummy.health = dummy.maxHealth;
+                        dummy.isAlive = true;
+                        dummy.hitFlashTimer = 0;
+                        dummy.renderedHealth = -1;
+                    }
+                    continue;
+                }
 
                 dummy.wanderTimer += delta;
                 if (dummy.wanderTimer > dummy.wanderInterval) {
@@ -1384,8 +1430,9 @@
                 let newX = dummy.group.position.x + Math.cos(dummy.moveDir) * moveSpeed * delta * 60;
                 let newZ = dummy.group.position.z + Math.sin(dummy.moveDir) * moveSpeed * delta * 60;
 
-                newX = Math.max(DUMMY_BOUNDS.minX, Math.min(newX, DUMMY_BOUNDS.maxX));
-                newZ = Math.max(DUMMY_BOUNDS.minZ, Math.min(newZ, DUMMY_BOUNDS.maxZ));
+                const areaBounds = AREA_BOUNDS[dummy.area] || DUMMY_BOUNDS;
+                newX = Math.max(areaBounds.minX + 1, Math.min(newX, areaBounds.maxX - 1));
+                newZ = Math.max(areaBounds.minZ + 1, Math.min(newZ, areaBounds.maxZ - 1));
 
                 if (!checkCollision(newX, newZ, 0.35)) {
                     dummy.group.position.x = newX;
@@ -1518,8 +1565,8 @@
             if (moveVec.lengthSq() > 1) moveVec.normalize();
             moveVec.multiplyScalar(MOVE_SPEED * frameScale);
 
-            const nX = playerPos.x + moveVec.x;
-            const nZ = playerPos.z + moveVec.z;
+            const nX = Math.max(WORLD_BOUNDS.minX + PLAYER_RADIUS, Math.min(playerPos.x + moveVec.x, WORLD_BOUNDS.maxX - PLAYER_RADIUS));
+            const nZ = Math.max(WORLD_BOUNDS.minZ + PLAYER_RADIUS, Math.min(playerPos.z + moveVec.z, WORLD_BOUNDS.maxZ - PLAYER_RADIUS));
 
             if (!checkCollision(nX, playerPos.z, PLAYER_RADIUS)) {
                 playerPos.x = nX;
