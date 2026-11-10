@@ -736,23 +736,26 @@
         // エリア中央を基準に、障害物に重ならない最も近い地点を探す
         function findAreaCenterSpawn(area, margin = 1.2) {
             const b = AREA_BOUNDS[area];
+            // 平原はスクリーンショットで示された中央の遮蔽物エリア付近を基準にする
+            const centerX = area === 'plains' ? 39 : b.centerX;
+            const centerZ = area === 'plains' ? -22 : b.centerZ;
             for (let radius = 0; radius <= 28; radius += 2) {
                 for (let dx = -radius; dx <= radius; dx += 2) {
                     for (const dz of (radius === 0 ? [0] : [-radius, radius])) {
-                        const x = b.centerX + dx, z = b.centerZ + dz;
+                        const x = centerX + dx, z = centerZ + dz;
                         if (x < b.minX + margin || x > b.maxX - margin || z < b.minZ + margin || z > b.maxZ - margin) continue;
                         if (!checkCollision(x, z, margin)) return { x, z };
                     }
                 }
                 for (let dz = -radius + 2; dz <= radius - 2; dz += 2) {
                     for (const dx of [-radius, radius]) {
-                        const x = b.centerX + dx, z = b.centerZ + dz;
+                        const x = centerX + dx, z = centerZ + dz;
                         if (x < b.minX + margin || x > b.maxX - margin || z < b.minZ + margin || z > b.maxZ - margin) continue;
                         if (!checkCollision(x, z, margin)) return { x, z };
                     }
                 }
             }
-            return { x: b.centerX, z: b.centerZ };
+            return { x: centerX, z: centerZ };
         }
 
         // 平原・丘・都会の中央に1体ずつ配置。倒されたら同じ中央付近へ復帰
