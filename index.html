@@ -1354,10 +1354,10 @@
             dummy.hitFlashTimer = dummy.hitFlashDuration;
             showDamageIndicator(actualDamage, window.innerWidth / 2, window.innerHeight / 2 - 50);
 
-            if (dummy.health <= 0) {
+            if (dummy.health <= 0 && dummy.isAlive) {
                 dummy.isAlive = false;
-                dummy.respawnTimer = 3;
-                dummy.group.scale.set(0, 0, 0);
+                dummy.respawnTimer = 3.0;
+                dummy.group.visible = false;
             }
         }
 
@@ -1476,16 +1476,19 @@
         function updateDummies(delta) {
             for (const dummy of dummies) {
                 if (!dummy.isAlive) {
-                    dummy.respawnTimer -= delta;
+                    dummy.respawnTimer = Math.max(0, dummy.respawnTimer - delta);
                     if (dummy.respawnTimer <= 0) {
+                        // 倒された場所ではなく、各エリアの安全な中央付近に3秒後復帰
                         const pos = findAreaCenterSpawn(dummy.area, 1.2);
                         dummy.spawnCenter = pos;
                         dummy.group.position.set(pos.x, 0, pos.z);
-                        dummy.group.scale.set(1, 1, 1);
                         dummy.health = dummy.maxHealth;
-                        dummy.isAlive = true;
                         dummy.hitFlashTimer = 0;
                         dummy.renderedHealth = -1;
+                        dummy.group.visible = true;
+                        dummy.group.scale.set(1, 1, 1);
+                        dummy.isAlive = true;
+                        dummy.respawnTimer = 0;
                     }
                     continue;
                 }
