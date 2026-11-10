@@ -1582,9 +1582,12 @@
                     if (aimingAtPlayer) {
                         dummy.attackTimer -= delta;
                         if (dummy.attackTimer <= 0) {
-                            playerHP = Math.max(0, playerHP - 13);
-                            updatePlayerHealthUI();
-                            dummy.attackTimer = 4.5;
+                            // 毎秒攻撃するが、命中率は60%にして必ず当たるわけではない
+                            if (Math.random() < 0.6) {
+                                playerHP = Math.max(0, playerHP - 13);
+                                updatePlayerHealthUI();
+                            }
+                            dummy.attackTimer = 1.0;
                             dummy.shootPoseTimer = 0.28;
                             if (playerHP <= 0 && !playerDeathPending) {
                                 playerDeathPending = true;
