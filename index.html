@@ -861,6 +861,61 @@
             return dummy;
         });
 
+        // 各エリアに1台ずつ設置する回復ステーション
+        function findHealingStationPosition(area) {
+            const b = AREA_BOUNDS[area];
+            const center = findAreaCenterSpawn(area, 2);
+            for (let radius = 8; radius <= 28; radius += 2) {
+                for (let step = 0; step < 16; step++) {
+                    const angle = step * Math.PI / 8;
+                    const x = center.x + Math.cos(angle) * radius;
+                    const z = center.z + Math.sin(angle) * radius;
+                    if (x < b.minX + 3 || x > b.maxX - 3 || z < b.minZ + 3 || z > b.maxZ - 3) continue;
+                    if (checkCollision(x, z, 1.8) || dummies.some(d => Math.hypot(d.group.position.x - x, d.group.position.z - z) < 6)) continue;
+                    return {x, z};
+                }
+            }
+            return {x: Math.max(b.minX + 5, Math.min(b.centerX + 10, b.maxX - 5)), z: Math.max(b.minZ + 5, Math.min(b.centerZ + 10, b.maxZ - 5))};
+        }
+        const healingStations = DUMMY_AREAS.map(area => {
+            const pos = findHealingStationPosition(area);
+            const group = new THREE.Group();
+            group.position.set(pos.x, 0, pos.z);
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.95, 0.22, 16), new THREE.MeshStandardMaterial({color: 0x263b40, metalness: 0.45, roughness: 0.5}));
+            base.position.y = 0.11;
+            group.add(base);
+            const column = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.65, 0.55), new THREE.MeshStandardMaterial({color: 0x1d5960, metalness: 0.25, roughness: 0.45}));
+            column.position.y = 1.0;
+            group.add(column);
+            const crossMat = new THREE.MeshStandardMaterial({color: 0x65ff9a, emissive: 0x1a8b48, emissiveIntensity: 1.1});
+            const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.82, 0.08), crossMat);
+            crossV.position.set(0, 1.15, 0.31);
+            group.add(crossV);
+            const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.18, 0.08), crossMat);
+            crossH.position.set(0, 1.15, 0.31);
+            group.add(crossH);
+            const light = new THREE.PointLight(0x55ff99, 0.7, 5);
+            light.position.y = 1.8;
+            group.add(light);
+            scene.add(group);
+            return {area, group, x:pos.x, z:pos.z, cooldown:0, cooldownMax:30};
+        });
+        const healPrompt = document.createElement('button');
+        healPrompt.textContent = 'F / タップ：HPを回復';
+        healPrompt.style.cssText = 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:1200;display:none;padding:12px 18px;border:2px solid #65ff9a;border-radius:12px;background:rgba(10,35,28,.92);color:#baffd0;font-size:15px;font-weight:bold;pointer-events:auto;';
+        document.body.appendChild(healPrompt);
+        let nearbyHealingStation = null;
+        function useHealingStation() {
+            if (!nearbyHealingStation || !gameStarted || isPaused) return;
+            const station = nearbyHealingStation;
+            if (station.cooldown > 0) return;
+            if (playerHP >= MAX_PLAYER_HP) return;
+            playerHP = Math.min(MAX_PLAYER_HP, playerHP + 50);
+            updatePlayerHealthUI();
+            station.cooldown = station.cooldownMax;
+        }
+        healPrompt.addEventListener('click', useHealingStation);
+
         const targets = [];
         const tGeo = new THREE.IcosahedronGeometry(0.8, 0);
         const tMat = new THREE.MeshStandardMaterial({color: 0xff3300, emissive: 0xff0000, emissiveIntensity: 0.6});
@@ -1117,6 +1172,10 @@
             if (e.key.toLowerCase() === 'e') {
                 e.preventDefault();
                 swapWeapon();
+            }
+            if (e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                useHealingStation();
             }
         });
         window.addEventListener('keyup', e => {
@@ -1886,6 +1945,38 @@
             }
 
             updateDummies(delta);
+            nearbyHealingStation = null;
+            let closestStationDistance = Infinity;
+            for (const station of healingStations) {
+                station.cooldown = Math.max(0, station.cooldown - delta);
+                const distance = Math.hypot(playerPos.x - station.x, playerPos.z - station.z);
+                if (distance < 3.8 && distance < closestStationDistance) {
+                    nearbyHealingStation = station;
+                    closestStationDistance = distance;
+                }
+                const ready = station.cooldown <= 0;
+                station.group.children.forEach(child => {
+                    if (child.material && child.material.emissive) {
+                        child.material.emissiveIntensity = ready ? 1.1 : 0.12;
+                    }
+                });
+            }
+            if (nearbyHealingStation) {
+                healPrompt.style.display = 'block';
+                if (nearbyHealingStation.cooldown > 0) {
+                    healPrompt.textContent = '再使用まで ' + Math.ceil(nearbyHealingStation.cooldown) + '秒';
+                    healPrompt.disabled = true;
+                } else if (playerHP >= MAX_PLAYER_HP) {
+                    healPrompt.textContent = 'HPは満タンです';
+                    healPrompt.disabled = true;
+                } else {
+                    healPrompt.textContent = 'F / タップ：HPを50回復';
+                    healPrompt.disabled = false;
+                }
+            } else {
+                healPrompt.style.display = 'none';
+                healPrompt.disabled = false;
+            }
             updateMinimap();
             camera.position.copy(playerPos);
             renderer.render(scene, camera);
