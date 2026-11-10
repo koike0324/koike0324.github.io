@@ -93,7 +93,7 @@
         }
 
         .btn {
-            position: absolute; pointer-events: auto; border-radius: 50%;
+            position: absolute; z-index: 20; pointer-events: auto; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             color: white; font-weight: bold;
             -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
@@ -210,7 +210,9 @@
             #ads-button { top:auto; bottom:242px; right:135px; }
         }
         #ads-button.enabled { background:rgba(20,125,65,.92); }
-        #scope-overlay { display:none; position:fixed; inset:0; z-index:8; pointer-events:none; background:radial-gradient(circle at center, transparent 0 31vmin, rgba(0,0,0,.98) 31.5vmin, #000 100%); }
+        /* スコープの暗幕はUIより後ろに置き、操作ボタンを隠さない */
+        #scope-overlay { display:none; position:fixed; inset:0; z-index:1; pointer-events:none; background:radial-gradient(circle at center, transparent 0 31vmin, rgba(0,0,0,.98) 31.5vmin, #000 100%); }
+        #minimap-container, #ammo-display, #weapon-display, #reload-container, #crosshair, #aim-toggle, #ads-button { z-index:20; }
         #scope-overlay::before { content:""; position:absolute; left:50%; top:50%; width:64vmin; height:64vmin; transform:translate(-50%,-50%); border:2px solid rgba(0,0,0,.95); border-radius:50%; box-shadow:0 0 0 2px rgba(220,230,220,.45), inset 0 0 2px rgba(0,0,0,.9); }
         #scope-overlay::after { content:""; position:absolute; left:50%; top:50%; width:64vmin; height:64vmin; transform:translate(-50%,-50%); background:linear-gradient(transparent calc(50% - 1px),rgba(20,20,20,.9) 50%,transparent calc(50% + 1px)),linear-gradient(90deg,transparent calc(50% - 1px),rgba(20,20,20,.9) 50%,transparent calc(50% + 1px)); border-radius:50%; }
 
