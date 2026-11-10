@@ -160,6 +160,11 @@
             width:100%; padding:12px; border:0; border-radius:9px;
             background:#23864b; color:#fff; font-size:16px; font-weight:800;
         }
+        #pause-reset {
+            width:100%; margin-top:10px; padding:12px; border:1px solid rgba(255,255,255,.2);
+            border-radius:9px; background:#a83232; color:#fff; font-size:15px; font-weight:800;
+        }
+        #pause-message { min-height:18px; margin:0 0 12px; color:#ffb4b4; font-size:13px; font-weight:700; }
         #health-hud {
             position: fixed !important; display: block !important; visibility: visible !important;
             opacity: 1 !important; z-index: 99999 !important;
@@ -295,7 +300,9 @@
     <div id="pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
         <div id="pause-panel">
             <h2 id="pause-title">PAUSED</h2>
+            <p id="pause-message" aria-live="polite"></p>
             <button id="pause-resume" type="button">ゲームに戻る</button>
+            <button id="pause-reset" type="button">リセット（死亡して復帰）</button>
         </div>
     </div>
 
@@ -1555,6 +1562,24 @@
         }
         document.getElementById('pause-open-button').addEventListener('click', () => setPaused(true));
         document.getElementById('pause-resume').addEventListener('click', () => setPaused(false));
+        document.getElementById('pause-reset').addEventListener('click', () => {
+            if (!gameStarted || !isPaused) return;
+            const resetButton = document.getElementById('pause-reset');
+            const pauseMessage = document.getElementById('pause-message');
+            resetButton.disabled = true;
+            resetButton.textContent = '復帰中...';
+            pauseMessage.textContent = 'YOU DIED';
+            playerHP = 0;
+            updatePlayerHealthUI();
+            clearInputState();
+            setTimeout(() => {
+                respawnPlayer(true);
+                pauseMessage.textContent = '';
+                resetButton.disabled = false;
+                resetButton.textContent = 'リセット（死亡して復帰）';
+                setPaused(false);
+            }, 800);
+        });
 
         const spawnOptionButtons = [...document.querySelectorAll('.spawn-option')];
         const spawnStatus = document.getElementById('spawn-status');
