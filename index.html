@@ -1580,7 +1580,8 @@
             playerHP = 0;
             updatePlayerHealthUI();
             clearInputState();
-            // ポーズ画面を閉じてから、ゲーム画面中央にYOU DIEDを表示
+            // 状態も解除してからポーズ画面を閉じ、YOU DIEDを表示
+            setPaused(false);
             pauseOverlay.style.display = 'none';
             deathOverlay.style.display = 'flex';
             if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
@@ -1589,7 +1590,6 @@
                 deathOverlay.style.display = 'none';
                 resetButton.disabled = false;
                 resetButton.textContent = 'リセット（死亡して復帰）';
-                setPaused(false);
             }, 1400);
         });
 
