@@ -1623,6 +1623,30 @@
             return spawn;
         }
 
+        // ダミーとプレイヤーの間に壁・建物などの障害物があるか確認
+        function hasDummyLineOfSight(dummy) {
+            const startX = dummy.group.position.x;
+            const startZ = dummy.group.position.z;
+            const endX = playerPos.x;
+            const endZ = playerPos.z;
+            const startY = 1.5;
+            const endY = playerPos.y;
+            const distance = Math.hypot(endX - startX, endZ - startZ);
+            const steps = Math.max(2, Math.ceil(distance / 0.35));
+            for (let step = 1; step < steps; step++) {
+                const t = step / steps;
+                const x = startX + (endX - startX) * t;
+                const z = startZ + (endZ - startZ) * t;
+                const y = startY + (endY - startY) * t;
+                for (const c of colliders) {
+                    if (x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ && y < (c.height ?? 3)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         function updateDummies(delta) {
             for (const dummy of dummies) {
                 if (!dummy.isAlive) {
@@ -1656,7 +1680,8 @@
                         dummy.attackTimer -= delta;
                         if (dummy.attackTimer <= 0) {
                             // 毎秒攻撃するが、命中率は60%にして必ず当たるわけではない
-                            if (Math.random() < 0.6) {
+                            // 壁や建物に遮られている場合はダメージを与えない
+                            if (hasDummyLineOfSight(dummy) && Math.random() < 0.6) {
                                 playerHP = Math.max(0, playerHP - 13);
                                 updatePlayerHealthUI();
                             }
