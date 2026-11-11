@@ -425,10 +425,10 @@
 
         const initialSize = getViewportSize();
         const camera = new THREE.PerspectiveCamera(75, initialSize.width / initialSize.height, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
         renderer.domElement.id = 'game-canvas';
         renderer.domElement.style.cssText = 'position:fixed;inset:0;display:block;width:100%;height:100%;';
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 1.25));
         renderer.setSize(initialSize.width, initialSize.height, false);
         document.body.appendChild(renderer.domElement);
         // ポーズボタンはUIレイヤーの重なり順に影響されないようbody直下へ移動
@@ -1279,6 +1279,12 @@
 
         const ray = new THREE.Raycaster();
         const aimRay = new THREE.Raycaster();
+        // 固定された遮蔽物リストを使い、毎フレームの全走査を避ける
+        let cachedShotBlockers = null;
+        function getShotBlockers() {
+            if (!cachedShotBlockers) cachedShotBlockers = scene.children.filter(object => object.userData.blocksShots);
+            return cachedShotBlockers;
+        }
         let autoAimEnabled = false;
         const aimToggle = document.getElementById('aim-toggle');
         function toggleAutoAim(e) {
@@ -1305,7 +1311,7 @@
                 new THREE.Euler(pitch, yaw, 0, 'YXZ')
             );
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(viewQuaternion).normalize();
-            const blockers = scene.children.filter(object => object.userData.blocksShots);
+            const blockers = getShotBlockers();
 
             const isVisibleTarget = dummy => {
                 if (!dummy || !dummy.isAlive) return null;
@@ -1878,6 +1884,7 @@
             }
         });
 
+        let minimapUpdateTimer = 0;
         function animate() {
             requestAnimationFrame(animate);
             if (!gameStarted || isPaused) {
@@ -2002,7 +2009,11 @@
                 healPrompt.style.display = 'none';
                 healPrompt.disabled = false;
             }
-            updateMinimap();
+            minimapUpdateTimer += delta;
+            if (minimapUpdateTimer >= 0.12) {
+                updateMinimap();
+                minimapUpdateTimer = 0;
+            }
             camera.position.copy(playerPos);
             renderer.render(scene, camera);
         }
