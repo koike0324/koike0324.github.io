@@ -973,9 +973,9 @@
             updateShotgunReticle();
         }
         adsButton.addEventListener('pointerdown', e => { e.preventDefault(); setAiming(!isAiming); });
-        document.addEventListener('pointerdown', e => { if (e.button === 2 && !isMobile) setAiming(true); });
-        document.addEventListener('pointerup', e => { if (e.button === 2 && !isMobile) setAiming(false); });
-        document.addEventListener('pointercancel', () => { if (!isMobile) setAiming(false); });
+        document.addEventListener('pointerdown', e => { if (e.button === 2 && selectedControlMode === 'pc') setAiming(true); });
+        document.addEventListener('pointerup', e => { if (e.button === 2 && selectedControlMode === 'pc') setAiming(false); });
+        document.addEventListener('pointercancel', () => { if (selectedControlMode === 'pc') setAiming(false); });
         let isReloading = false;
         let reloadTimer = 0;
         let isFiring = false;
@@ -1208,8 +1208,8 @@
             }
         });
 
-        renderer.domElement.addEventListener('mousedown', () => {
-            if (isMobile) return;
+        renderer.domElement.addEventListener('mousedown', e => {
+            if (selectedControlMode !== 'pc' || e.button !== 0) return;
             if (weapons[currentWeapon].isAutomatic) {
                 isFiring = true;
             } else {
