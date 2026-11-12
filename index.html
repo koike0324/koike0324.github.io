@@ -1195,7 +1195,7 @@
         });
 
         renderer.domElement.addEventListener('click', () => {
-            if (!isMobile && document.body.requestPointerLock) {
+            if (selectedControlMode === 'pc' && document.body.requestPointerLock) {
                 document.body.requestPointerLock();
             }
         });
@@ -1840,7 +1840,7 @@
             pauseOverlay.style.display = isPaused ? 'flex' : 'none';
             if (isPaused && document.pointerLockElement && document.exitPointerLock) {
                 document.exitPointerLock();
-            } else if (!isPaused && !isMobile && document.body.requestPointerLock) {
+            } else if (!isPaused && selectedControlMode === 'pc' && document.body.requestPointerLock) {
                 document.body.requestPointerLock();
             }
         }
@@ -1915,7 +1915,7 @@
             gameStarted = true;
             pauseOpenButton.style.display = 'block';
             document.getElementById('start-screen').style.display = 'none';
-            if (!isMobile && document.body.requestPointerLock) {
+            if (selectedControlMode === 'pc' && document.body.requestPointerLock) {
                 renderer.domElement.focus?.();
                 document.body.requestPointerLock();
             }
