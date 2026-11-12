@@ -604,21 +604,64 @@
         addGroundZone(-105, -82, 145, 170, 0x667f3c,0.022);
         const hillMat = new THREE.MeshStandardMaterial({color:0x718b45, roughness:1, flatShading:true});
         const hillTopMat = new THREE.MeshStandardMaterial({color:0x879b52, roughness:1, flatShading:true});
+        // 丘エリアはなだらかな山型地形。表示メッシュと足元の高さ計算を同じ式で作る
+        const hillDefinitions = [];
+        function getHillHeightAt(x,z) {
+            let height = 0;
+            for (const h of hillDefinitions) {
+                const nx = (x - h.x) / h.rx;
+                const nz = (z - h.z) / h.rz;
+                const r = Math.sqrt(nx * nx + nz * nz);
+                if (r < 1) {
+                    const localHeight = h.height * Math.pow(1 - r, 1.25);
+                    height = Math.max(height, localHeight);
+                }
+            }
+            return height;
+        }
+        function getGroundHeightAt(x,z) {
+            return getHillHeightAt(x,z);
+        }
         function addHill(x,z,rx,rz,height,mat=hillMat) {
-            const hill = new THREE.Mesh(new THREE.SphereGeometry(1,20,12,0,Math.PI*2,0,Math.PI/2),mat);
-            hill.scale.set(rx,height,rz);
+            const definition = {x,z,rx,rz,height};
+            hillDefinitions.push(definition);
+            const segments = 40;
+            const positions = [];
+            const indices = [];
+            for (let iz = 0; iz <= segments; iz++) {
+                for (let ix = 0; ix <= segments; ix++) {
+                    const nx = (ix / segments) * 2 - 1;
+                    const nz = (iz / segments) * 2 - 1;
+                    const r = Math.sqrt(nx * nx + nz * nz);
+                    const y = r < 1 ? height * Math.pow(1 - r, 1.25) : 0;
+                    positions.push(nx * rx, y, nz * rz);
+                }
+            }
+            for (let iz = 0; iz < segments; iz++) {
+                for (let ix = 0; ix < segments; ix++) {
+                    const a = iz * (segments + 1) + ix;
+                    const b = a + 1;
+                    const c = a + segments + 1;
+                    const d = c + 1;
+                    indices.push(a,c,b,b,c,d);
+                }
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            const hill = new THREE.Mesh(geometry,mat);
             hill.position.set(x,0,z);
             scene.add(hill);
-            colliders.push({type:'ellipse',x,z,rx,rz,height});
         }
-        addHill(-105,-48,19,22,13);
-        addHill(-68,-72,22,25,17,hillTopMat);
-        addHill(-112,-105,24,21,15);
-        addHill(-62,-119,18,22,12,hillTopMat);
-        addHill(-18,-112,15,18,9);
-        addHill(-145,-55,18,25,12,hillTopMat);
-        addHill(-115,-145,22,18,11);
-        addHill(-55,-155,20,17,10,hillTopMat);
+        addHill(-105,-48,19,22,10);
+        addHill(-68,-72,22,25,13,hillTopMat);
+        addHill(-112,-105,24,21,11);
+        addHill(-62,-119,18,22,9,hillTopMat);
+        addHill(-18,-112,15,18,7);
+        addHill(-145,-55,18,25,9,hillTopMat);
+        addHill(-115,-145,22,18,8);
+        addHill(-55,-155,20,17,7,hillTopMat);
 
         // 都会：箱形の簡易絵ではなく、窓・屋上設備付きの3Dビルを生成
         addGroundZone(98,-92,150,140,0x555b60,0.03);
@@ -1600,15 +1643,7 @@
 
         function checkCollision(x, z, radius) {
             for (const c of colliders) {
-                // 丘は四角形ではなく、見た目と同じ楕円の裾で判定する
-                if (c.type === 'ellipse') {
-                    const rx = c.rx + radius;
-                    const rz = c.rz + radius;
-                    const dx = (x - c.x) / rx;
-                    const dz = (z - c.z) / rz;
-                    if (dx * dx + dz * dz < 1) return true;
-                    continue;
-                }
+                if (c.type === 'ellipse') continue; // 丘は通行可能な地形として扱う
 
                 const closestX = Math.max(c.minX, Math.min(x, c.maxX));
                 const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
@@ -1647,7 +1682,7 @@
                 activeSpawnArea = selectedSpawnArea;
             }
             const spawn = getSpawnPosition(activeSpawnArea);
-            playerPos.set(spawn.x, 1.6, spawn.z);
+            playerPos.set(spawn.x, getGroundHeightAt(spawn.x,spawn.z) + 1.6, spawn.z);
             playerHP = MAX_PLAYER_HP;
             playerDeathPending = false;
             updatePlayerHealthUI();
@@ -1691,7 +1726,7 @@
                         // 倒された場所ではなく、各エリアの安全な中央付近に3秒後復帰
                         const pos = findAreaCenterSpawn(dummy.area, 1.2);
                         dummy.spawnCenter = pos;
-                        dummy.group.position.set(pos.x, 0, pos.z);
+                        dummy.group.position.set(pos.x, getGroundHeightAt(pos.x,pos.z), pos.z);
                         dummy.health = dummy.maxHealth;
                         dummy.hitFlashTimer = 0;
                         dummy.renderedHealth = -1;
@@ -1774,6 +1809,7 @@
                     else if (!chasing) dummy.moveDir = Math.random() * Math.PI * 2;
                 }
 
+                dummy.group.position.y = getGroundHeightAt(dummy.group.position.x,dummy.group.position.z);
                 const walkCycle = (Date.now() * 0.01) % (Math.PI * 2);
                 const firingPose = dummy.attackPose;
                 const recoil = dummy.shootPoseTimer > 0 ? Math.sin((dummy.shootPoseTimer / 0.28) * Math.PI) * 0.18 : 0;
@@ -1989,8 +2025,9 @@
 
             velocityY -= 0.019 * frameScale;
             playerPos.y += velocityY * frameScale;
-            if (playerPos.y <= 1.6) {
-                playerPos.y = 1.6;
+            const groundEyeHeight = getGroundHeightAt(playerPos.x,playerPos.z) + 1.6;
+            if (playerPos.y <= groundEyeHeight) {
+                playerPos.y = groundEyeHeight;
                 velocityY = 0;
                 isGrounded = true;
             }
