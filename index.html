@@ -1208,15 +1208,23 @@
             }
         });
 
-        renderer.domElement.addEventListener('mousedown', e => {
-            if (selectedControlMode !== 'pc' || e.button !== 0) return;
+        // PCマウス射撃：Pointer Events を使い、Safari / Chrome 間の入力差を吸収する
+        document.addEventListener('pointerdown', e => {
+            if (selectedControlMode !== 'pc' || e.pointerType !== 'mouse' || e.button !== 0) return;
+            if (!gameStarted || isPaused || e.target !== renderer.domElement) return;
+            e.preventDefault();
             if (weapons[currentWeapon].isAutomatic) {
                 isFiring = true;
             } else {
                 isFiring = false;
                 shoot();
             }
-        });
+        }, true);
+        const stopMouseFiring = e => {
+            if (e.pointerType === 'mouse' || e.type === 'mouseup') isFiring = false;
+        };
+        window.addEventListener('pointerup', stopMouseFiring);
+        window.addEventListener('pointercancel', stopMouseFiring);
         window.addEventListener('mouseup', () => { isFiring = false; });
 
         // Pointer Events でタッチ・マウスを統一し、iPad Edge/Safari の入力差を減らす
