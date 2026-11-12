@@ -609,7 +609,7 @@
             hill.scale.set(rx,height,rz);
             hill.position.set(x,0,z);
             scene.add(hill);
-            colliders.push({minX:x-rx*0.78,maxX:x+rx*0.78,minZ:z-rz*0.78,maxZ:z+rz*0.78,width:rx*1.56,depth:rz*1.56,height});
+            colliders.push({type:'ellipse',x,z,rx,rz,height});
         }
         addHill(-105,-48,19,22,13);
         addHill(-68,-72,22,25,17,hillTopMat);
@@ -1600,6 +1600,16 @@
 
         function checkCollision(x, z, radius) {
             for (const c of colliders) {
+                // 丘は四角形ではなく、見た目と同じ楕円の裾で判定する
+                if (c.type === 'ellipse') {
+                    const rx = c.rx + radius;
+                    const rz = c.rz + radius;
+                    const dx = (x - c.x) / rx;
+                    const dz = (z - c.z) / rz;
+                    if (dx * dx + dz * dz < 1) return true;
+                    continue;
+                }
+
                 const closestX = Math.max(c.minX, Math.min(x, c.maxX));
                 const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
                 const distX = x - closestX;
