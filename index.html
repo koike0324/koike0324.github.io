@@ -37,6 +37,11 @@
         #start-subtitle { margin: 0 0 24px; color: #a9c8d8; font-size: 14px; letter-spacing: 3px; }
         #start-description { margin: 0 auto 18px; color: #d5e0e8; line-height: 1.8; font-size: 14px; }
         #spawn-title { margin: 18px 0 10px; color: #c8dce9; font-size: 13px; letter-spacing: 1.5px; }
+        #control-title { margin: 18px 0 10px; color: #c8dce9; font-size: 13px; letter-spacing: 1.5px; }
+        #control-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; margin: 0 auto 12px; }
+        .control-option { min-height: 48px; padding: 10px 8px; border: 1px solid rgba(255,255,255,.25); border-radius: 9px; background: rgba(255,255,255,.07); color: #eaf5fb; font-size: 14px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+        .control-option.selected { border-color: #45c7ff; background: rgba(25,145,205,.32); box-shadow: inset 0 0 0 1px #45c7ff, 0 0 14px rgba(40,170,230,.18); }
+        #control-status { min-height: 18px; margin: 0 0 16px; color: #9edfff; font-size: 12px; }
         #spawn-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; margin: 0 auto 20px; }
         .spawn-option { min-height: 48px; padding: 10px 8px; border: 1px solid rgba(255,255,255,.25); border-radius: 9px; background: rgba(255,255,255,.07); color: #eaf5fb; font-size: 14px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
         .spawn-option.selected { border-color: #45c7ff; background: rgba(25,145,205,.32); box-shadow: inset 0 0 0 1px #45c7ff, 0 0 14px rgba(40,170,230,.18); }
@@ -320,6 +325,12 @@
                 <button class="spawn-option" type="button" data-area="random" aria-pressed="false">🎲 ランダム</button>
             </div>
             <p id="spawn-status" aria-live="polite">選択中：平原</p>
+            <h2 id="control-title">CONTROL TYPE</h2>
+            <div id="control-options" role="group" aria-label="操作方法">
+                <button class="control-option selected" type="button" data-control="pc" aria-pressed="true">⌨️ PCで操作</button>
+                <button class="control-option" type="button" data-control="screen" aria-pressed="false">📱 画面で操作</button>
+            </div>
+            <p id="control-status" aria-live="polite">選択中：PCで操作</p>
             <button id="start-button" type="button">GAME START</button>
             <p id="start-hint">PC：WASDで移動・マウスで視点操作<br>スマホ：画面のコントローラーで操作</p>
         </div>
@@ -1075,6 +1086,7 @@
         updatePlayerHealthUI();
         let selectedSpawnArea = 'plains';
         let activeSpawnArea = 'plains';
+        let selectedControlMode = 'pc';
 
         const reloadUI = document.getElementById('reload-container');
         const reloadBar = document.getElementById('reload-bar-fill');
@@ -1856,6 +1868,30 @@
             }, 1400);
         });
 
+        function applyControlMode() {
+            const screenMode = selectedControlMode === 'screen';
+            ['joystick-container','fire-button','jump-button','weapon-swap-button','reload-button'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('mobile-visible', screenMode);
+            });
+            document.getElementById('controls-guide').classList.toggle('hidden', screenMode);
+        }
+        const controlOptionButtons = [...document.querySelectorAll('.control-option')];
+        const controlStatus = document.getElementById('control-status');
+        controlOptionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (gameStarted) return;
+                selectedControlMode = button.dataset.control;
+                controlOptionButtons.forEach(option => {
+                    const isSelected = option === button;
+                    option.classList.toggle('selected', isSelected);
+                    option.setAttribute('aria-pressed', String(isSelected));
+                });
+                controlStatus.textContent = selectedControlMode === 'pc'
+                    ? '選択中：PCで操作（WASD・マウス）'
+                    : '選択中：画面で操作（画面上のボタン）';
+            });
+        });
         const spawnOptionButtons = [...document.querySelectorAll('.spawn-option')];
         const spawnStatus = document.getElementById('spawn-status');
         spawnOptionButtons.forEach(button => {
@@ -1874,6 +1910,7 @@
         });
         document.getElementById('start-button').addEventListener('click', () => {
             if (gameStarted) return;
+            applyControlMode();
             respawnPlayer(true);
             gameStarted = true;
             pauseOpenButton.style.display = 'block';
@@ -1899,7 +1936,7 @@
             updateAutoAim(delta);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            if (!isMobile) {
+            if (selectedControlMode === 'pc') {
                 moveF = 0;
                 moveR = 0;
                 if (keys['w']) moveF += 1;
