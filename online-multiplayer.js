@@ -72,4 +72,4 @@ setInterval(()=>{
  const packet=JSON.stringify({type:"state",state});
  for(const pc of peers.values()){const ch=pc._fpsChannel;if(ch?.readyState==="open"&&ch.bufferedAmount<16000)try{ch.send(packet);}catch{}}
 },66);
-status("Firebase不要のWebRTC方式です。Cloudflare Workerの設定後にルーム機能が使えます。");
+status("WebRTC P2P方式です。Cloudflare Workerの設定後にルーム機能が使えます。");
