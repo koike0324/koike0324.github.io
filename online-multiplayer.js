@@ -74,7 +74,7 @@ async function createRoom() {
 }
 async function joinRoom(code) {
   await ensureReady();
-  if (!/^\\d{6}$/.test(code)) throw new Error("6桁のルームコードを入力してください。");
+  if (!/^\d{6}$/.test(code)) throw new Error("6桁のルームコードを入力してください。");
   const roomRef = ref(db, "rooms/" + code);
   let joined = false;
   const result = await runTransaction(roomRef, room => {
