@@ -355,7 +355,7 @@
                 <button id="online-join" class="online-action" type="button">コードで参加</button>
                 <button id="online-match" class="online-action secondary" type="button">自動マッチング</button>
                 <p id="online-room-code" aria-live="polite"></p>
-                <p id="online-status" aria-live="polite">Firebaseの設定を確認しています…</p>
+                <p id="online-status" aria-live="polite">P2P接続サーバーの設定を確認しています…</p>
                 <button id="online-close" class="online-action secondary" type="button">閉じる</button>
             </section>
             <p id="start-hint">PC：WASDで移動・マウスで視点操作<br>スマホ：画面のコントローラーで操作</p>
@@ -1916,7 +1916,7 @@
             return group;
         }
         window.FPSGameBridge = {
-            getState: () => ({x: playerPos.x, y: playerPos.y, z: playerPos.z, yaw, pitch, hp: playerHP}),
+            getState: () => ({x: playerPos.x, y: playerPos.y, z: playerPos.z, yaw, pitch, hp: playerHP, started: gameStarted}),
             setRemotePlayers: players => {
                 const active = new Set();
                 for (const p of players) {
