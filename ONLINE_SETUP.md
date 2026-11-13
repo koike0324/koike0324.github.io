@@ -1,32 +1,37 @@
-# FPSオンライン対戦・Firebase設定手順
+# FPSオンライン対戦（Firebaseなし・WebRTC P2P）
 
-## 現在実装した範囲
-- スタート画面にオンライン対戦パネルを追加
-- Firebase匿名認証
-- 6桁ルームコードの作成・参加
-- 最大8人の部屋人数制限
-- 待機中ルームを探す簡易自動マッチング
-- 切断時にRealtime Databaseからプレイヤー登録を削除
+## 構成
+- GitHub Pages：ゲーム本体（PC・スマホ対応）
+- Cloudflare Worker + Durable Object：6桁ルームコード、自動マッチング、WebRTCの接続情報（シグナリング）の中継
+- WebRTC DataChannel：最大8人のプレイヤー間で位置・向きをP2P同期
+- STUN：Google公開STUNを使用。ネットワーク環境によってはTURNサーバーが別途必要
 
-**まだ未実装:** WebRTCのP2Pデータチャネル、STUN/TURN接続、3Dプレイヤー表示、位置・射撃・HP同期、対戦開始/終了処理。現時点ではロビー基盤であり、オンライン戦闘はまだできません。
+Firebaseは使用しません。
 
-## Firebase側の設定
-1. https://console.firebase.google.com/ でFirebaseプロジェクトを作成。
-2. プロジェクトにWebアプリを追加。
-3. Authentication > Sign-in method で「匿名」を有効化。
-4. Realtime Databaseを作成。
-5. Project settings > Your apps のWeb設定を `firebase-config.js` に入力。
-6. Realtime Databaseのルールを設定して公開。
+## Cloudflare Workerの公開手順
+1. Cloudflareアカウントを作成し、Workers & Pagesを開く。
+2. PCにNode.jsを用意し、ターミナルで `npm install -g wrangler` を実行。
+3. このリポジトリをPCにダウンロードまたはGitでcloneする。
+4. リポジトリのルートで `wrangler login` を実行。
+5. `wrangler deploy` を実行する。
+6. 表示されたWorkerのURLを確認する。例：`https://fps-p2p-signaling.<アカウント>.workers.dev`
+7. `online-config.js` のURLを、`wss://fps-p2p-signaling.<アカウント>.workers.dev/ws` に変更してGitHubへ反映する。
 
-## 注意
-Realtime Databaseのセキュリティルールは、認証済みユーザーだけがアクセスできるように設定してください。開発中でもデータベース全体を一般公開するルール（read/write true）は使わないでください。オンライン対戦の本番公開前には、部屋の所有者・参加者ごとに読み書きを制限するルールと、サーバー側の検証を追加する必要があります。
+## いま実装した機能
+- Firebase依存を除いたルームUI
+- Worker側での6桁コード発行・参加
+- 最大8人の待機ルームと自動マッチング
+- WebRTC offer / answer / ICE candidate の中継
+- 最大7人とのP2P DataChannel接続
+- PC・スマホ共通の位置・向き同期
+- 受信プレイヤーの簡易3Dアバター表示
 
-## 次の実装段階
-1. Firebaseを使ったWebRTCシグナリング（offer/answer/ICE候補）
-2. 8人メッシュ接続の確立と切断復帰
-3. Three.js上に他プレイヤーのモデルを表示
-4. 移動・視点・射撃の同期
-5. HP・ダメージ・撃破判定を信頼できる管理サーバーで検証
-6. 自動マッチングの待機時間・人数条件を調整
+## 現時点の制限
+- WorkerをCloudflareへデプロイし、`online-config.js` のURLを設定するまでは接続できません。
+- STUNのみのため、一部のモバイル回線・学校/会社ネットワーク等ではP2P接続できず、TURNサーバーが必要です。TURNは別途費用が発生する場合があります。
+- 現段階はプレイヤー表示と位置・向きの同期までです。プレイヤー同士の弾判定、HP・ダメージの同期、対戦開始/終了の管理、チート対策は未実装です。
+- P2Pメッシュは8人時に各端末が最大7接続を持つため、端末性能・回線品質によって負荷が上がります。
+- Workerのルーム情報は接続中の管理用です。ゲームの勝敗やHPを信頼できる形で管理するサーバーではありません。
 
-ゲームURL: https://koike0324.github.io/
+## ゲーム
+https://koike0324.github.io/
