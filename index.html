@@ -349,7 +349,7 @@
             <button id="online-open-button" type="button">🌐 オンライン対戦</button>
             <section id="online-panel" aria-label="オンライン対戦">
                 <h2>ONLINE MULTIPLAYER</h2>
-                <p>最大8人・PC／スマホ対応。Firebaseの設定後にルーム機能が使えるようになります。</p>
+                <p>最大8人・PC／スマホ対応。ルームコードまたは自動マッチングで参加できます。P2P接続には管理サーバーの設定が必要です。</p>
                 <button id="online-create" class="online-action" type="button">ルームを作成</button>
                 <input id="online-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="6桁のルームコード" aria-label="ルームコード">
                 <button id="online-join" class="online-action" type="button">コードで参加</button>
@@ -1896,6 +1896,56 @@
                 dummy.healthBar.quaternion.copy(camera.quaternion);
             }
         }
+
+        // WebRTCで受信した他プレイヤーを3D空間へ表示するための橋渡し
+        const remoteAvatars = new Map();
+        function makeRemoteAvatar(id) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.3), new THREE.MeshStandardMaterial({color: 0x25c7ff, roughness: 0.65}));
+            body.position.y = 1;
+            group.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), new THREE.MeshStandardMaterial({color: 0xffd2ad}));
+            head.position.y = 1.72;
+            group.add(head);
+            const marker = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.35, 8), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            marker.rotation.x = Math.PI / 2;
+            marker.position.set(0, 1.35, -0.32);
+            group.add(marker);
+            group.userData.remoteId = id;
+            scene.add(group);
+            return group;
+        }
+        window.FPSGameBridge = {
+            getState: () => ({x: playerPos.x, y: playerPos.y, z: playerPos.z, yaw, pitch, hp: playerHP}),
+            setRemotePlayers: players => {
+                const active = new Set();
+                for (const p of players) {
+                    if (!p || !p.id || p.id === 'undefined') continue;
+                    active.add(p.id);
+                    let avatar = remoteAvatars.get(p.id);
+                    if (!avatar) {
+                        avatar = makeRemoteAvatar(p.id);
+                        remoteAvatars.set(p.id, avatar);
+                    }
+                    avatar.position.set(Number(p.x) || 0, (Number(p.y) || 1.6) - 1.6, Number(p.z) || 0);
+                    avatar.rotation.y = Number(p.yaw) || 0;
+                    avatar.visible = p.hp === undefined || p.hp > 0;
+                }
+                for (const [id, avatar] of remoteAvatars) {
+                    if (!active.has(id)) {
+                        scene.remove(avatar);
+                        avatar.traverse(obj => {
+                            if (obj.geometry) obj.geometry.dispose();
+                            if (obj.material) {
+                                if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                                else obj.material.dispose();
+                            }
+                        });
+                        remoteAvatars.delete(id);
+                    }
+                }
+            }
+        };
 
         const clock = new THREE.Clock();
         let gameStarted = false;
