@@ -20,7 +20,7 @@ function clearPeers(){for(const pc of peers.values())pc.close();peers.clear();re
 function onClose(){clearPeers();roomCode=null;myId=null;if(codeEl)codeEl.textContent="";status("管理サーバーとの接続が切れました。再接続してください。");}
 function attachChannel(id,ch){
  const pc=peers.get(id);if(pc)pc._fpsChannel=ch;
- ch.onmessage=e=>{try{const p=JSON.parse(e.data);if(p.type==="state"&&p.state){remoteStates.set(id,{id,...p.state});drawRemote();}}catch{}};
+ ch.onmessage=e=>{try{const p=JSON.parse(e.data);if(p.type==="state"&&p.state){remoteStates.set(id,{id,...p.state});drawRemote();}else if(p.type==="damage"&&p.targetId===myId){window.FPSGameBridge?.applyRemoteDamage?.(id,Number(p.damage)||0,p.eventId);}}catch{}};
 }
 function createPeer(id,initiator){
  const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});peers.set(id,pc);
@@ -66,7 +66,7 @@ $("online-close")?.addEventListener("click",()=>{panel.style.display="none";});
 $("online-create")?.addEventListener("click",()=>enter("create"));
 $("online-join")?.addEventListener("click",()=>{const c=(codeInput.value||"").trim();if(!/^\d{6}$/.test(c))return status("6桁のルームコードを入力してください。");enter("join",c);});
 $("online-match")?.addEventListener("click",()=>enter("match"));
-window.FPSOnlineClient={sendEvent:p=>{const s=JSON.stringify(p);for(const pc of peers.values())if(pc._fpsChannel?.readyState==="open")try{pc._fpsChannel.send(s);}catch{}},getRoomCode:()=>roomCode};
+window.FPSOnlineClient={sendEvent:p=>{const s=JSON.stringify(p);for(const [id,pc] of peers)if((!p.targetId||p.targetId===id)&&pc._fpsChannel?.readyState==="open")try{pc._fpsChannel.send(s);}catch{}},getRoomCode:()=>roomCode};
 setInterval(()=>{
  const state=window.FPSGameBridge?.getState?.();if(!roomCode||!state?.started)return;
  const packet=JSON.stringify({type:"state",state});
