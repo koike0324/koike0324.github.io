@@ -202,6 +202,10 @@
             width:100%; margin:0 0 10px; padding:11px; border:1px solid rgba(255,255,255,.25);
             border-radius:9px; background:#245b83; color:#fff; font-size:14px; font-weight:800;
         }
+        #pause-to-title {
+            width:100%; margin-top:10px; padding:12px; border:1px solid rgba(255,255,255,.25);
+            border-radius:9px; background:#46566a; color:#fff; font-size:15px; font-weight:800;
+        }
         #pause-message { min-height:18px; margin:0 0 12px; color:#ffb4b4; font-size:13px; font-weight:700; }
         #you-died-overlay {
             position:fixed; inset:0; z-index:2147483646; display:none;
@@ -369,6 +373,7 @@
             <button id="dummy-retaliation-toggle" type="button" aria-pressed="true">ダミーの反撃：ON</button>
             <button id="pause-resume" type="button">ゲームに戻る</button>
             <button id="pause-reset" type="button">リセット（死亡して復帰）</button>
+            <button id="pause-to-title" type="button">スタート画面に戻る</button>
         </div>
     </div>
 
@@ -2022,6 +2027,17 @@
         }
         document.getElementById('pause-open-button').addEventListener('click', () => setPaused(true));
         document.getElementById('pause-resume').addEventListener('click', () => setPaused(false));
+        document.getElementById('pause-to-title').addEventListener('click', () => {
+            if (!gameStarted || !isPaused) return;
+            clearInputState();
+            gameStarted = false;
+            isPaused = false;
+            pauseOverlay.style.display = 'none';
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('pause-open-button').style.display = 'none';
+            document.getElementById('you-died-overlay').style.display = 'none';
+            if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+        });
         document.getElementById('pause-reset').addEventListener('click', () => {
             if (!gameStarted || !isPaused) return;
             const resetButton = document.getElementById('pause-reset');
