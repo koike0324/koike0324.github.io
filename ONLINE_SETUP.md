@@ -29,3 +29,6 @@ WebSocket URL: wss://fps-online-server.watatero-0324.workers.dev/ws
 STUNのみのため、一部の回線ではP2P接続できず、TURNサーバーが別途必要になる場合があります。現段階ではプレイヤー表示と位置・向きの同期までです。HP・ダメージ・勝敗のサーバー管理やチート対策は未実装です。
 
 ゲーム：https://koike0324.github.io/
+
+
+<!-- Cloudflare first-build trigger -->
