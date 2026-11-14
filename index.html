@@ -1534,7 +1534,17 @@
                     dummyMeshes.push(mesh);
                 }
             }
-            const candidates = [...blockers, ...targetMeshes, ...dummyMeshes]
+            const remoteMeshes = [];
+            for (const [remoteId, avatar] of remoteAvatars) {
+                if (!avatar.visible) continue;
+                avatar.traverse(mesh => {
+                    if (mesh.isMesh) {
+                        mesh.userData.remotePlayerId = remoteId;
+                        remoteMeshes.push(mesh);
+                    }
+                });
+            }
+            const candidates = [...blockers, ...targetMeshes, ...dummyMeshes, ...remoteMeshes]
                 .filter(object => object && object.isObject3D && typeof object.raycast === 'function');
 
             const isShotgun = currentWeapon === 'shotgun';
@@ -1545,6 +1555,7 @@
             const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
             const pelletDamage = isShotgun ? Math.max(1, Math.round(weapon.damage / pelletCount)) : weapon.damage;
             const damagedDummies = new Map();
+            const damagedPlayers = new Map();
             let targetHit = false;
 
             for (let pellet = 0; pellet < pelletCount; pellet++) {
@@ -1563,6 +1574,16 @@
                 createBulletTrail(start, end, isShotgun ? 0xffa500 : 0xffff55);
 
                 if (!hit || hit.object.userData.blocksShots) continue;
+
+                const remotePlayerId = hit.object.userData.remotePlayerId;
+                if (remotePlayerId) {
+                    let remoteDamage = pelletDamage;
+                    if (isShotgun && hit.distance > 10) {
+                        remoteDamage = Math.max(1, Math.round(pelletDamage * (1 - (hit.distance - 10) / 18)));
+                    }
+                    damagedPlayers.set(remotePlayerId, (damagedPlayers.get(remotePlayerId) || 0) + remoteDamage);
+                    continue;
+                }
 
                 if (targets.includes(hit.object)) {
                     if (!targetHit) {
@@ -1592,6 +1613,16 @@
                 dummy.health -= actualDamage;
                 dummy.hitFlashTimer = dummy.hitFlashDuration;
                 damagedDummies.set(dummy, (damagedDummies.get(dummy) || 0) + actualDamage);
+            }
+
+            for (const [targetId, totalDamage] of damagedPlayers) {
+                window.FPSOnlineClient?.sendEvent?.({
+                    type: 'damage',
+                    targetId,
+                    damage: totalDamage,
+                    eventId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random())
+                });
+                showDamageIndicator(totalDamage, window.innerWidth / 2, window.innerHeight / 2 - 50);
             }
 
             for (const [dummy, totalDamage] of damagedDummies) {
@@ -1917,6 +1948,21 @@
         }
         window.FPSGameBridge = {
             getState: () => ({x: playerPos.x, y: playerPos.y, z: playerPos.z, yaw, pitch, hp: playerHP, started: gameStarted}),
+            applyRemoteDamage: (fromId, damage, eventId) => {
+                if (!eventId || !Number.isFinite(damage) || damage <= 0 || playerDeathPending || playerHP <= 0) return;
+                playerHP = Math.max(0, playerHP - Math.min(100, damage));
+                updatePlayerHealthUI();
+                if (playerHP <= 0 && !playerDeathPending) {
+                    playerDeathPending = true;
+                    clearInputState();
+                    const deathOverlay = document.getElementById('you-died-overlay');
+                    deathOverlay.style.display = 'flex';
+                    setTimeout(() => {
+                        respawnPlayer(false);
+                        deathOverlay.style.display = 'none';
+                    }, 1400);
+                }
+            },
             setRemotePlayers: players => {
                 const active = new Set();
                 for (const p of players) {
