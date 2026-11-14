@@ -1978,8 +1978,16 @@
                         avatar = makeRemoteAvatar(p.id);
                         remoteAvatars.set(p.id, avatar);
                     }
-                    avatar.position.set(Number(p.x) || 0, (Number(p.y) || 1.6) - 1.6, Number(p.z) || 0);
-                    avatar.rotation.y = Number(p.yaw) || 0;
+                    if (!avatar.userData.networkTarget) {
+                        avatar.position.set(Number(p.x) || 0, (Number(p.y) || 1.6) - 1.6, Number(p.z) || 0);
+                        avatar.rotation.y = Number(p.yaw) || 0;
+                    }
+                    avatar.userData.networkTarget = {
+                        x: Number(p.x) || 0,
+                        y: (Number(p.y) || 1.6) - 1.6,
+                        z: Number(p.z) || 0,
+                        yaw: Number(p.yaw) || 0
+                    };
                     avatar.visible = p.hp === undefined || p.hp > 0;
                 }
                 for (const [id, avatar] of remoteAvatars) {
@@ -2125,6 +2133,19 @@
             // タブ復帰時の巨大なdeltaで移動や物理が暴れないよう、フレーム時間を制限
             const delta = Math.min(clock.getDelta(), 0.05);
             const frameScale = delta * 60;
+            // 通信で届く位置情報の間を毎フレーム補間し、相手のワープを抑える
+            const remoteLerp = 1 - Math.exp(-12 * delta);
+            for (const avatar of remoteAvatars.values()) {
+                const target = avatar.userData.networkTarget;
+                if (!target) continue;
+                avatar.position.x += (target.x - avatar.position.x) * remoteLerp;
+                avatar.position.y += (target.y - avatar.position.y) * remoteLerp;
+                avatar.position.z += (target.z - avatar.position.z) * remoteLerp;
+                let yawDiff = target.yaw - avatar.rotation.y;
+                while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+                while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+                avatar.rotation.y += yawDiff * remoteLerp;
+            }
             updateAutoAim(delta);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
