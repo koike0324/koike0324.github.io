@@ -1,37 +1,31 @@
 # FPSオンライン対戦（Firebaseなし・WebRTC P2P）
 
 ## 構成
-- GitHub Pages：ゲーム本体（PC・スマホ対応）
-- Cloudflare Worker + Durable Object：6桁ルームコード、自動マッチング、WebRTCの接続情報（シグナリング）の中継
-- WebRTC DataChannel：最大8人のプレイヤー間で位置・向きをP2P同期
-- STUN：Google公開STUNを使用。ネットワーク環境によってはTURNサーバーが別途必要
+- GitHub Pages：ゲーム本体
+- Cloudflare Worker + Durable Object：6桁ルームコード、最大8人のルーム管理、自動マッチング、WebRTCシグナリング
+- WebRTC DataChannel：プレイヤー間の位置・向き同期
+- STUN：公開STUNサーバー
 
 Firebaseは使用しません。
 
-## Cloudflare Workerの公開手順
-1. Cloudflareアカウントを作成し、Workers & Pagesを開く。
-2. PCにNode.jsを用意し、ターミナルで `npm install -g wrangler` を実行。
-3. このリポジトリをPCにダウンロードまたはGitでcloneする。
-4. リポジトリのルートで `wrangler login` を実行。
-5. `wrangler deploy` を実行する。
-6. 表示されたWorkerのURLを確認する。例：`https://fps-p2p-signaling.<アカウント>.workers.dev`
-7. `online-config.js` のURLを、`wss://fps-p2p-signaling.<アカウント>.workers.dev/ws` に変更してGitHubへ反映する。
+## Cloudflare Workerのデプロイ
+このリポジトリにはWorker本体（cloudflare-worker.js）と設定（wrangler.jsonc）が含まれます。Cloudflare Workers & PagesでこのGitHubリポジトリをWorkerとして接続し、リポジトリのルートを使ってデプロイしてください。既存の手動Hello World Workerにコードを貼り付ける必要はありません。
 
-## いま実装した機能
-- Firebase依存を除いたルームUI
-- Worker側での6桁コード発行・参加
-- 最大8人の待機ルームと自動マッチング
+Worker名は fps-online-server です。Durable Object bindingは設定ファイルに定義済みです。
+- Binding variable: ROOMS
+- Durable Object class: RoomHub
+- Migration: v1
+
+WebSocket URL: wss://fps-online-server.watatero-0324.workers.dev/ws
+
+## 機能と制限
+- 6桁ルームコードで作成・参加
+- 空きがあるルームへの自動マッチング
+- 最大8人
 - WebRTC offer / answer / ICE candidate の中継
 - 最大7人とのP2P DataChannel接続
-- PC・スマホ共通の位置・向き同期
-- 受信プレイヤーの簡易3Dアバター表示
+- PC・スマホ対応の位置・向き同期
 
-## 現時点の制限
-- WorkerをCloudflareへデプロイし、`online-config.js` のURLを設定するまでは接続できません。
-- STUNのみのため、一部のモバイル回線・学校/会社ネットワーク等ではP2P接続できず、TURNサーバーが必要です。TURNは別途費用が発生する場合があります。
-- 現段階はプレイヤー表示と位置・向きの同期までです。プレイヤー同士の弾判定、HP・ダメージの同期、対戦開始/終了の管理、チート対策は未実装です。
-- P2Pメッシュは8人時に各端末が最大7接続を持つため、端末性能・回線品質によって負荷が上がります。
-- Workerのルーム情報は接続中の管理用です。ゲームの勝敗やHPを信頼できる形で管理するサーバーではありません。
+STUNのみのため、一部の回線ではP2P接続できず、TURNサーバーが別途必要になる場合があります。現段階ではプレイヤー表示と位置・向きの同期までです。HP・ダメージ・勝敗のサーバー管理やチート対策は未実装です。
 
-## ゲーム
-https://koike0324.github.io/
+ゲーム：https://koike0324.github.io/
