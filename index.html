@@ -406,6 +406,111 @@
             }
         }
 
+
+        /* タッチ端末の横向きレイアウト。ブラウザのアドレスバーを含む高さ判定に依存しない */
+        @media (orientation: landscape) and (max-height: 900px) and (pointer: coarse) {
+            html.touch-device #minimap-container {
+                position: fixed !important;
+                top: max(8px, env(safe-area-inset-top)) !important;
+                right: max(8px, env(safe-area-inset-right)) !important;
+                left: auto !important;
+                bottom: auto !important;
+                width: 96px !important;
+                height: 96px !important;
+                z-index: 30 !important;
+                box-sizing: border-box !important;
+            }
+            html.touch-device #weapon-swap-button {
+                position: fixed !important;
+                top: max(112px, calc(112px + env(safe-area-inset-top))) !important;
+                right: max(10px, env(safe-area-inset-right)) !important;
+                left: auto !important;
+                bottom: auto !important;
+                width: 62px !important;
+                height: 62px !important;
+                font-size: 10px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #aim-toggle {
+                position: fixed !important;
+                top: max(184px, calc(184px + env(safe-area-inset-top))) !important;
+                right: max(8px, env(safe-area-inset-right)) !important;
+                left: auto !important;
+                bottom: auto !important;
+                padding: 6px 7px !important;
+                font-size: 10px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #ads-button {
+                position: fixed !important;
+                top: max(226px, calc(226px + env(safe-area-inset-top))) !important;
+                right: max(8px, env(safe-area-inset-right)) !important;
+                left: auto !important;
+                bottom: auto !important;
+                padding: 6px 7px !important;
+                font-size: 10px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #fire-button {
+                position: fixed !important;
+                top: auto !important;
+                right: max(12px, env(safe-area-inset-right)) !important;
+                bottom: max(12px, env(safe-area-inset-bottom)) !important;
+                left: auto !important;
+                width: 70px !important;
+                height: 70px !important;
+                font-size: 15px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #jump-button {
+                position: fixed !important;
+                top: auto !important;
+                right: max(94px, calc(94px + env(safe-area-inset-right))) !important;
+                bottom: max(12px, env(safe-area-inset-bottom)) !important;
+                left: auto !important;
+                width: 62px !important;
+                height: 62px !important;
+                font-size: 13px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #reload-button {
+                position: fixed !important;
+                top: auto !important;
+                right: max(94px, calc(94px + env(safe-area-inset-right))) !important;
+                bottom: max(84px, calc(84px + env(safe-area-inset-bottom))) !important;
+                left: auto !important;
+                width: 62px !important;
+                height: 62px !important;
+                font-size: 10px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #joystick-container {
+                position: fixed !important;
+                left: max(12px, env(safe-area-inset-left)) !important;
+                bottom: max(12px, env(safe-area-inset-bottom)) !important;
+                top: auto !important;
+                width: 108px !important;
+                height: 108px !important;
+                z-index: 35 !important;
+            }
+            html.touch-device #joystick-knob {
+                top: 33px !important;
+                left: 33px !important;
+                width: 42px !important;
+                height: 42px !important;
+            }
+            html.touch-device #health-hud {
+                position: fixed !important;
+                left: 50% !important;
+                right: auto !important;
+                top: auto !important;
+                bottom: max(8px, env(safe-area-inset-bottom)) !important;
+                transform: translateX(-50%) !important;
+                width: min(300px, 34vw) !important;
+                min-width: 180px !important;
+                z-index: 40 !important;
+            }
+        }
     </style>
 </head>
 <body>
