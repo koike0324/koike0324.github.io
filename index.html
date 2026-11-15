@@ -326,6 +326,86 @@
                 right: max(20px, env(safe-area-inset-right));
             }
         }
+        /* タッチ端末の横向き画面：マップと操作ボタンを別々の領域に配置 */
+        @media (orientation: landscape) and (max-height: 600px) {
+            html.touch-device #minimap-container {
+                top: max(8px, env(safe-area-inset-top));
+                right: max(10px, env(safe-area-inset-right));
+                width: clamp(82px, 15vh, 108px);
+                height: clamp(82px, 15vh, 108px);
+                box-sizing: border-box;
+            }
+            html.touch-device #weapon-swap-button {
+                top: auto;
+                right: max(12px, env(safe-area-inset-right));
+                bottom: max(92px, calc(92px + env(safe-area-inset-bottom)));
+                width: 62px;
+                height: 62px;
+                font-size: 10px;
+            }
+            html.touch-device #fire-button {
+                top: auto;
+                right: max(12px, env(safe-area-inset-right));
+                bottom: max(14px, calc(14px + env(safe-area-inset-bottom)));
+                width: 70px;
+                height: 70px;
+                font-size: 15px;
+            }
+            html.touch-device #jump-button {
+                top: auto;
+                right: max(92px, calc(92px + env(safe-area-inset-right)));
+                bottom: max(14px, calc(14px + env(safe-area-inset-bottom)));
+                width: 62px;
+                height: 62px;
+                font-size: 13px;
+            }
+            html.touch-device #reload-button {
+                top: auto;
+                right: max(92px, calc(92px + env(safe-area-inset-right)));
+                bottom: max(86px, calc(86px + env(safe-area-inset-bottom)));
+                width: 62px;
+                height: 62px;
+                font-size: 10px;
+            }
+            html.touch-device #aim-toggle {
+                top: max(126px, calc(126px + env(safe-area-inset-top)));
+                right: max(10px, env(safe-area-inset-right));
+                left: auto;
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+            html.touch-device #ads-button {
+                top: max(164px, calc(164px + env(safe-area-inset-top)));
+                right: max(10px, env(safe-area-inset-right));
+                bottom: auto;
+                left: auto;
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+            html.touch-device #joystick-container {
+                left: max(14px, env(safe-area-inset-left));
+                bottom: max(14px, calc(14px + env(safe-area-inset-bottom)));
+                width: 108px;
+                height: 108px;
+            }
+            html.touch-device #joystick-knob {
+                top: 33px;
+                left: 33px;
+                width: 42px;
+                height: 42px;
+            }
+            html.touch-device #health-hud {
+                bottom: max(10px, env(safe-area-inset-bottom)) !important;
+                width: min(220px, 30vw) !important;
+                min-width: 160px;
+                padding: 7px 10px 8px;
+            }
+            html.touch-device #pause-open-button {
+                top: max(104px, calc(104px + env(safe-area-inset-top))) !important;
+                left: max(14px, env(safe-area-inset-left)) !important;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -442,6 +522,7 @@
         const isTablet = window.innerWidth > 600 && (isIPadOS || /iPad|Android/i.test(navigator.userAgent) || hasTouchInput);
 
         if(isMobile) {
+            document.documentElement.classList.add('touch-device');
             document.getElementById('joystick-container').classList.add('mobile-visible');
             document.getElementById('fire-button').classList.add('mobile-visible');
             document.getElementById('jump-button').classList.add('mobile-visible');
