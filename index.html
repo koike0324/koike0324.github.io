@@ -687,6 +687,21 @@
                 min-width: 0 !important; box-sizing: border-box !important; z-index: 40 !important;
             }
         }
+
+        #weapon-select-title { margin: 18px 0 6px; color: #dff5ff; font-size: 17px; }
+        #weapon-select-help { margin: 0 0 10px; color: #9fb5c4; font-size: 12px; }
+        #weapon-select-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:min(340px,100%); margin:0 auto 8px; }
+        .weapon-option { min-height:44px; border:1px solid #60798b; border-radius:9px; background:#172635; color:#eaf6ff; font-size:13px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+        .weapon-option.selected { border:2px solid #35d68a; background:rgba(20,130,85,.32); box-shadow:0 0 10px rgba(53,214,138,.18); }
+        #weapon-select-status { min-height:18px; margin:0 0 14px; color:#8de8ba; font-size:12px; }
+        #aim-toggle, #ads-button { width:clamp(58px, 9vmin, 82px); height:clamp(58px, 9vmin, 82px); padding:5px !important; border-radius:50% !important; display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.15; font-size:clamp(9px,1.5vmin,12px) !important; box-sizing:border-box; }
+        html.mobile-layout #weapon-swap-button {
+            position:fixed !important; top:auto !important; bottom:calc(var(--hud-small) * 2 + 3 * var(--hud-edge)) !important;
+            right:calc(var(--hud-fire) + 2 * var(--hud-edge)) !important; left:auto !important;
+            width:var(--hud-small) !important; height:var(--hud-small) !important;
+            border-radius:50% !important; font-size:clamp(9px,1.6vmin,12px) !important; z-index:36 !important;
+        }
+
     </style>
 </head>
 <body>
@@ -710,6 +725,15 @@
                 <button class="control-option" type="button" data-control="screen" aria-pressed="false">📱 画面で操作</button>
             </div>
             <p id="control-status" aria-live="polite">選択中：PCで操作</p>
+            <h2 id="weapon-select-title">WEAPON LOADOUT</h2>
+            <p id="weapon-select-help">使用する武器を2つ選んでね（初期選択：ピストル・ライフル）</p>
+            <div id="weapon-select-options" role="group" aria-label="使用する武器を2つ選択">
+                <button class="weapon-option selected" type="button" data-weapon="pistol" aria-pressed="true">🔫 ピストル</button>
+                <button class="weapon-option selected" type="button" data-weapon="rifle" aria-pressed="true">🎯 ライフル</button>
+                <button class="weapon-option" type="button" data-weapon="sniper" aria-pressed="false">🔭 スナイパー</button>
+                <button class="weapon-option" type="button" data-weapon="shotgun" aria-pressed="false">💥 ショットガン</button>
+            </div>
+            <p id="weapon-select-status" aria-live="polite">選択中：ピストル・ライフル（2/2）</p>
             <button id="start-button" type="button">GAME START</button>
             <button id="online-open-button" type="button">🌐 オンライン対戦</button>
             <section id="online-panel" aria-label="オンライン対戦">
@@ -1383,8 +1407,35 @@
             shotgun: { maxAmmo: 6, reloadTime: 1.8, damage: 29, fireRate: 0.72, spreadAngle: 0.028, aimSpread: 0.018, range: 24, isAutomatic: false }
         };
 
-        let currentWeapon = 'pistol';
+        const WEAPON_NAMES = { pistol: 'ピストル', rifle: 'ライフル', sniper: 'スナイパー', shotgun: 'ショットガン' };
+        let selectedWeapons = ['pistol', 'rifle'];
+        let currentWeapon = selectedWeapons[0];
         let ammo = weapons[currentWeapon].maxAmmo;
+        const weaponOptionButtons = [...document.querySelectorAll('.weapon-option')];
+        const weaponSelectStatus = document.getElementById('weapon-select-status');
+        function updateWeaponSelectionUI() {
+            weaponOptionButtons.forEach(button => {
+                const selected = selectedWeapons.includes(button.dataset.weapon);
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            });
+            weaponSelectStatus.textContent = '選択中：' + selectedWeapons.map(id => WEAPON_NAMES[id]).join('・') + '（' + selectedWeapons.length + '/2）';
+        }
+        weaponOptionButtons.forEach(button => button.addEventListener('click', () => {
+            const id = button.dataset.weapon;
+            if (selectedWeapons.includes(id)) {
+                if (selectedWeapons.length === 1) return;
+                selectedWeapons = selectedWeapons.filter(item => item !== id);
+            } else {
+                if (selectedWeapons.length >= 2) {
+                    weaponSelectStatus.textContent = '武器は2つまでだよ。先に選択を外してね。';
+                    return;
+                }
+                selectedWeapons.push(id);
+            }
+            updateWeaponSelectionUI();
+        }));
+        updateWeaponSelectionUI();
         let isAiming = false;
         const adsButton = document.getElementById('ads-button');
         const scopeOverlay = document.getElementById('scope-overlay');
@@ -1495,7 +1546,7 @@
             currentGunModel = model;
         }
 
-        createGunModel('pistol');
+        createGunModel(currentWeapon);
         camera.add(gunGroup);
         scene.add(camera);
 
@@ -2009,7 +2060,8 @@
         }
 
         function swapWeapon() {
-            const weaponList = ['pistol', 'rifle', 'sniper', 'shotgun'];
+            const weaponList = selectedWeapons;
+            if (weaponList.length !== 2) return;
             const currentIndex = weaponList.indexOf(currentWeapon);
             currentWeapon = weaponList[(currentIndex + 1) % weaponList.length];
             ammo = weapons[currentWeapon].maxAmmo;
@@ -2487,6 +2539,17 @@
         });
         document.getElementById('start-button').addEventListener('click', () => {
             if (gameStarted) return;
+            if (selectedWeapons.length !== 2) {
+                weaponSelectStatus.textContent = 'ゲーム開始前に武器を2つ選んでね。';
+                return;
+            }
+            currentWeapon = selectedWeapons[0];
+            ammo = weapons[currentWeapon].maxAmmo;
+            document.getElementById('weapon-display').innerText = currentWeapon.toUpperCase();
+            document.getElementById('ammo-display').innerText = `${ammo} / ${weapons[currentWeapon].maxAmmo}`;
+            createGunModel(currentWeapon);
+            updateShotgunReticle();
+            setAiming(false);
             applyControlMode();
             respawnPlayer(true);
             gameStarted = true;
