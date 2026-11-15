@@ -20,7 +20,7 @@ function clearPeers(){for(const pc of peers.values())pc.close();peers.clear();re
 function onClose(){clearPeers();roomCode=null;myId=null;if(codeEl)codeEl.textContent="";status("管理サーバーとの接続が切れました。再接続してください。");}
 function attachChannel(id,ch){
  const pc=peers.get(id);if(pc)pc._fpsChannel=ch;
- ch.onmessage=e=>{try{const p=JSON.parse(e.data);if(p.type==="state"&&p.state){remoteStates.set(id,{id,...p.state});drawRemote();}else if(p.type==="damage"&&p.targetId===myId){window.FPSGameBridge?.applyRemoteDamage?.(id,Number(p.damage)||0,p.eventId);}}catch{}};
+ ch.onmessage=e=>{try{const p=JSON.parse(e.data);if(p.type==="state"&&p.state){remoteStates.set(id,{id,...p.state});drawRemote();}else if(p.type==="damage"&&p.targetId===myId){window.FPSGameBridge?.applyRemoteDamage?.(id,Number(p.damage)||0,p.eventId);}else if(p.type==="bullet-trail"&&Array.isArray(p.start)&&Array.isArray(p.end)){window.FPSGameBridge?.showRemoteBulletTrail?.(p.start,p.end,p.weapon);}}catch{}};
 }
 function createPeer(id,initiator){
  const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});peers.set(id,pc);
