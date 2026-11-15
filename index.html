@@ -1705,7 +1705,9 @@
         // PCマウス射撃：Pointer Events を使い、Safari / Chrome 間の入力差を吸収する
         document.addEventListener('pointerdown', e => {
             if (selectedControlMode !== 'pc' || e.pointerType !== 'mouse' || e.button !== 0) return;
-            if (!gameStarted || isPaused || e.target !== renderer.domElement) return;
+            if (!gameStarted || isPaused) return;
+            // Pointer Lock中はイベントのtargetがbodyになるため、canvas以外も許可する
+            if (e.target !== renderer.domElement && document.pointerLockElement !== document.body) return;
             e.preventDefault();
             if (weapons[currentWeapon].isAutomatic) {
                 isFiring = true;
