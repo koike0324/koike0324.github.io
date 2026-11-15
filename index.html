@@ -2499,9 +2499,11 @@
 
         function applyControlMode() {
             const screenMode = selectedControlMode === 'screen';
-            ['joystick-container','fire-button','jump-button','weapon-swap-button','reload-button'].forEach(id => {
+            ['joystick-container','fire-button','jump-button','weapon-swap-button','reload-button','aim-toggle','ads-button'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.classList.toggle('mobile-visible', screenMode);
+                if (!el) return;
+                el.classList.toggle('mobile-visible', screenMode);
+                el.style.display = screenMode ? (id === 'joystick-container' || id === 'fire-button' || id === 'jump-button' || id === 'weapon-swap-button' || id === 'reload-button' ? 'block' : 'flex') : 'none';
             });
             document.getElementById('controls-guide').classList.toggle('hidden', screenMode);
         }
