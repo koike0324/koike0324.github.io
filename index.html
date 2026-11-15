@@ -1577,6 +1577,12 @@
                 const visibleDistance = Math.min(hit ? hit.distance : weapon.range, 25);
                 const end = start.clone().add(direction.multiplyScalar(Math.max(1, visibleDistance - 1.25)));
                 createBulletTrail(start, end, isShotgun ? 0xffa500 : 0xffff55);
+                window.FPSOnlineClient?.sendEvent?.({
+                    type: "bullet-trail",
+                    start: [start.x, start.y, start.z],
+                    end: [end.x, end.y, end.z],
+                    weapon: currentWeapon
+                });
 
                 if (!hit || hit.object.userData.blocksShots) continue;
 
@@ -1953,6 +1959,15 @@
         }
         window.FPSGameBridge = {
             getState: () => ({x: playerPos.x, y: playerPos.y, z: playerPos.z, yaw, pitch, hp: playerHP, started: gameStarted}),
+            showRemoteBulletTrail: (start, end, weapon) => {
+                if (!gameStarted || isPaused || !Array.isArray(start) || !Array.isArray(end)) return;
+                if (![...start, ...end].every(Number.isFinite)) return;
+                createBulletTrail(
+                    new THREE.Vector3(start[0], start[1], start[2]),
+                    new THREE.Vector3(end[0], end[1], end[2]),
+                    weapon === "shotgun" ? 0xff8a32 : 0xff4545
+                );
+            },
             applyRemoteDamage: (fromId, damage, eventId) => {
                 if (!eventId || !Number.isFinite(damage) || damage <= 0 || playerDeathPending || playerHP <= 0) return;
                 playerHP = Math.max(0, playerHP - Math.min(100, damage));
