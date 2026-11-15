@@ -795,6 +795,7 @@
             <div>WASD: 移動</div>
             <div>Mouse: 視点</div>
             <div>Click: 射撃 / 右クリック長押し: 覗く</div>
+            <div>F: エイムアシスト ON/OFF</div>
             <div>Space: ジャンプ</div>
             <div>R: リロード</div>
             <div>E: 武器切り替え</div>
@@ -1667,6 +1668,10 @@
             if (e.key.toLowerCase() === 'r') {
                 e.preventDefault();
                 startReload();
+            }
+            if (e.key.toLowerCase() === 'f' && selectedControlMode === 'pc' && !e.repeat) {
+                e.preventDefault();
+                toggleAutoAim(e);
             }
             if (e.key.toLowerCase() === 'e') {
                 e.preventDefault();
