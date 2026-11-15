@@ -1412,6 +1412,8 @@
         let selectedWeapons = ['pistol', 'rifle'];
         let currentWeapon = selectedWeapons[0];
         let ammo = weapons[currentWeapon].maxAmmo;
+        // 武器ごとに残弾数を保存し、切り替えても弾を補充しない
+        const ammoByWeapon = Object.fromEntries(Object.entries(weapons).map(([id, data]) => [id, data.maxAmmo]));
         const weaponOptionButtons = [...document.querySelectorAll('.weapon-option')];
         const weaponSelectStatus = document.getElementById('weapon-select-status');
         function updateWeaponSelectionUI() {
@@ -2068,8 +2070,9 @@
             const weaponList = selectedWeapons;
             if (weaponList.length !== 2) return;
             const currentIndex = weaponList.indexOf(currentWeapon);
+            ammoByWeapon[currentWeapon] = ammo;
             currentWeapon = weaponList[(currentIndex + 1) % weaponList.length];
-            ammo = weapons[currentWeapon].maxAmmo;
+            ammo = ammoByWeapon[currentWeapon] ?? weapons[currentWeapon].maxAmmo;
             isReloading = false;
             isFiring = false;
             reloadUI.style.display = 'none';
@@ -2551,7 +2554,8 @@
                 return;
             }
             currentWeapon = selectedWeapons[0];
-            ammo = weapons[currentWeapon].maxAmmo;
+            selectedWeapons.forEach(id => { ammoByWeapon[id] = weapons[id].maxAmmo; });
+            ammo = ammoByWeapon[currentWeapon];
             document.getElementById('weapon-display').innerText = currentWeapon.toUpperCase();
             document.getElementById('ammo-display').innerText = `${ammo} / ${weapons[currentWeapon].maxAmmo}`;
             createGunModel(currentWeapon);
